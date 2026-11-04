@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CVviews Promo</title>
+<style>
+@font-face { font-family: "Literata"; src: url("../public/fonts/literata-latin-opsz-normal.woff2") format("woff2"); font-weight: 200 900; }
+@font-face { font-family: "Literata"; src: url("../public/fonts/literata-latin-opsz-italic.woff2") format("woff2"); font-weight: 200 900; font-style: italic; }
+@font-face { font-family: "Host Grotesk"; src: url("../public/fonts/host-grotesk-latin-wght-normal.woff2") format("woff2"); font-weight: 300 800; }
+
+:root {
+  --bg: #ffffff; --bg-2: #f6f6f4; --bg-3: #efefec; --line: #ececea; --line-2: #e2e2df;
+  --ink: #0e0e0d; --ink-2: #4d4d4a; --ink-3: #9a9a96; --btn: #0e0e0d; --btn-ink: #ffffff; --pdf: #c4432c;
+  --sans: "Host Grotesk", system-ui, sans-serif; --serif: "Literata", Georgia, serif;
+}
+.dark {
+  --bg: #0b0b0a; --bg-2: #151514; --bg-3: #1c1c1a; --line: #262624; --line-2: #363532;
+  --ink: #ecebe6; --ink-2: #b9b7b0; --ink-3: #8f8d86; --btn: #ecebe6; --btn-ink: #0b0b0a; --pdf: #ee8a76;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #e9e8e4; overflow: hidden; }
+body { display: grid; place-items: center; font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+svg.i { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* O palco tem sempre 1920x1080; na pré-visualização é encolhido para caber na janela. */
+#stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; flex: none; color: #0e0e0d;
+  background: radial-gradient(90% 70% at 50% 0%, #ffffff 0%, #f7f6f3 55%, #efeee9 100%); transform-origin: center; }
+.scene { position: absolute; inset: 0; opacity: 0; }
+.center { position: absolute; inset: 0; display: grid; place-items: center; }
+
+/* Marca e títulos */
+.mark { fill: none; stroke: #0e0e0d; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.brand { display: flex; align-items: center; gap: 28px; }
+.brand svg { width: 150px; height: 90px; }
+.brand .word { font: 400 112px/1 var(--serif); letter-spacing: -4px; }
+.big { font: 400 120px/1.05 var(--serif); letter-spacing: -4.5px; text-align: center; }
+.sub { margin-top: 30px; color: #6b6b67; font: 400 38px/1.3 var(--sans); text-align: center; letter-spacing: -.3px; }
+.w { display: inline-block; overflow: hidden; vertical-align: bottom; padding: 0 .02em .12em; margin-bottom: -.12em; }
+.w > span { display: inline-block; will-change: transform; }
+
+.caption { position: absolute; left: 190px; top: 50%; width: 600px; transform: translateY(-50%); }
+.caption .k { color: #8a8a85; font: 500 26px/1 var(--sans); letter-spacing: .2px; margin-bottom: 22px; }
+.caption .t { font: 400 76px/1.06 var(--serif); letter-spacing: -2.6px; }
+.caption .d { margin-top: 24px; color: #6b6b67; font: 400 28px/1.4 var(--sans); }
+.cap-swap { position: relative; height: 330px; }
+.cap-swap > div { position: absolute; inset: 0; }
+
+/* Telemóvel */
+.phone-wrap { position: absolute; left: 50%; top: 50%; width: 0; height: 0; perspective: 2400px; }
+.phone { position: absolute; left: -213px; top: -436px; width: 426px; height: 872px; border-radius: 68px; padding: 14px;
+  background: linear-gradient(145deg, #d9d8d4, #a9a8a4 40%, #8e8d89 60%, #cfcecb); transform-style: preserve-3d;
+  box-shadow: 0 2px 0 1px #6f6e6a inset, 0 60px 120px -30px rgb(30 28 24 / .45), 0 30px 60px -30px rgb(30 28 24 / .35); }
+.phone::before { content: ""; position: absolute; inset: 5px; border-radius: 63px; background: #0d0d0c; }
+.screen { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 55px; background: var(--bg); color: var(--ink); }
+.island { position: absolute; z-index: 9; top: 12px; left: 50%; width: 118px; height: 34px; margin-left: -59px; border-radius: 20px; background: #000; }
+.status { position: absolute; z-index: 8; top: 0; left: 0; right: 0; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 6px 36px 0 44px; font: 600 16px/1 var(--sans); }
+.status .ic { display: flex; gap: 6px; align-items: center; }
+.homebar { position: absolute; z-index: 8; bottom: 9px; left: 50%; width: 134px; height: 5px; margin-left: -67px; border-radius: 3px; background: var(--ink); }
+.layer { position: absolute; inset: 0; padding-top: 56px; display: flex; flex-direction: column; background: var(--bg); }
+
+.topbar { height: 60px; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 14px; }
+.cbtn { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-2); border-radius: 50%; color: var(--ink); }
+.cbtn svg { width: 19px; height: 19px; }
+.ttl { flex: 1; text-align: center; color: var(--ink-2); font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.home { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; padding: 10px 16px 0; background: radial-gradient(120% 55% at 50% 0%, var(--bg-2), var(--bg) 75%); }
+.switch { position: relative; align-self: center; display: inline-flex; padding: 4px; margin-bottom: 22px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--bg); }
+.switch .knob { position: absolute; top: 4px; left: 4px; height: 36px; border-radius: 999px; background: var(--btn); }
+.switch b { position: relative; z-index: 1; height: 36px; padding: 0 18px; display: grid; place-items: center; border-radius: 999px; font-size: 14.5px; font-weight: 500; color: var(--ink-2); }
+.hello { display: flex; flex-direction: column; align-items: center; gap: 8px; margin-bottom: 24px; text-align: center; }
+.hello p { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--ink-2); font-size: 16px; }
+.hello p svg { width: 32px; height: 19px; stroke: var(--ink); }
+.hello h1 { margin: 0; max-width: 11ch; font: 400 31px/1.12 var(--serif); letter-spacing: -1.2px; }
+.ideas { position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ideas.alt { position: absolute; inset: 0; }
+.idea { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px 14px 16px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg); box-shadow: 0 1px 2px rgb(0 0 0 / .03); }
+.idea .ii { width: 38px; height: 38px; margin-bottom: 10px; display: grid; place-items: center; border-radius: 50%; background: var(--bg-2); }
+.idea .ii svg { width: 18px; height: 18px; }
+.idea strong { font-size: 14.5px; font-weight: 600; line-height: 1.25; }
+.idea small { color: var(--ink-3); font-size: 12.5px; line-height: 1.4; }
+.recent { margin-top: 22px; }
+.recent header { display: flex; justify-content: space-between; margin: 0 2px 10px; color: var(--ink-3); font-size: 14.5px; }
+.recent header span + span { color: var(--ink-2); }
+.recent .row { display: flex; justify-content: space-between; padding: 12px 2px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); font-size: 15px; font-weight: 500; }
+.recent .row small { color: var(--ink-3); font-size: 13px; font-weight: 400; }
+
+.composer { position: relative; flex: none; display: flex; align-items: flex-end; gap: 8px; padding: 8px 10px 30px; }
+.plus { width: 52px; height: 52px; flex: none; display: grid; place-items: center; border: 1px solid var(--line-2); border-radius: 50%; background: var(--bg); }
+.pill { flex: 1; min-width: 0; display: flex; flex-direction: column; border: 1px solid var(--line-2); border-radius: 28px; background: var(--bg); overflow: hidden; }
+.pill-row { display: flex; align-items: center; min-height: 50px; padding: 0 7px 0 20px; gap: 2px; }
+.pill .txt { flex: 1; min-width: 0; padding: 13px 0; font-size: 16px; line-height: 1.4; color: var(--ink); }
+.pill .ph { color: var(--ink-3); }
+.caret { display: inline-block; width: 2px; height: 19px; margin-left: 1px; vertical-align: -3px; background: var(--ink); }
+.mic { width: 38px; height: 38px; display: grid; place-items: center; color: var(--ink-2); }
+.mic svg { width: 18px; height: 18px; }
+.send { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 50%; background: var(--btn); color: var(--btn-ink); }
+.send svg { width: 18px; height: 18px; stroke-width: 2.4; }
+.chip { display: flex; align-items: center; gap: 10px; width: max-content; padding: 8px 14px 8px 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); }
+.chip .fi { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; color: #fff; background: var(--pdf); }
+.chip .fi svg { width: 17px; height: 17px; }
+.chip strong { display: block; font-size: 13.5px; font-weight: 600; }
+.chip small { display: block; color: var(--ink-3); font-size: 12px; }
+.pill .chips { padding: 10px 10px 0; }
+
+/* Conversa */
+.chat { flex: 1; display: flex; flex-direction: column; gap: 16px; padding: 6px 18px 0; overflow: hidden; }
+.me { align-self: flex-end; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.bubble { max-width: 290px; padding: 11px 16px; border-radius: 20px; background: var(--bg-2); font-size: 15.5px; line-height: 1.45; }
+.leo-w { display: flex; align-items: center; gap: 10px; color: var(--ink-3); font-size: 14.5px; }
+.leo-w svg { width: 40px; height: 24px; }
+.leo-w path { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linecap: round; }
+.rv { display: flex; flex-direction: column; gap: 14px; }
+.rv-top { display: flex; align-items: center; gap: 14px; }
+.ring { position: relative; width: 66px; height: 66px; flex: none; display: grid; place-items: center; border-radius: 50%; }
+.ring::before { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: var(--bg); }
+.ring span { position: relative; font: 500 23px/1 var(--serif); }
+.rv-top h3 { margin: 0 0 4px; font: 400 21px/1.15 var(--serif); letter-spacing: -.5px; }
+.rv-top small { color: var(--ink-3); font-size: 13px; }
+.cats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cat { padding: 11px 12px 12px; border: 1px solid var(--line); border-radius: 14px; }
+.cat div { display: flex; justify-content: space-between; align-items: baseline; font-size: 13px; font-weight: 500; }
+.cat div span { font: 500 17px/1 var(--serif); }
+.bar { height: 4px; margin-top: 9px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 2px; background: var(--ink); transform-origin: left; }
+.pts h4 { margin: 2px 0 8px; font-size: 14px; font-weight: 600; }
+.pts li { margin: 0 0 7px; color: var(--ink-2); font-size: 14px; line-height: 1.4; }
+.pts ul { margin: 0; padding-left: 18px; }
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- 1. Marca -->
+  <section class="scene" id="s1"><div class="center"><div class="brand">
+    <svg viewBox="0 0 40 24"><path class="mark" id="s1mark" pathLength="1" d="M2 17c3-1 4-9 7-9s1 9 4 9 3-11 7-11-1 11 3 11 3-7 6-7 2 6 5 6 3-3 4-4"/></svg>
+    <div class="word" id="s1word">CVviews</div>
+  </div></div></section>
+
+  <!-- 2. Apresentação -->
+  <section class="scene" id="s2"><div class="center"><div>
+    <div class="big" id="s2a">Conhece o Leo.</div>
+    <div class="sub" id="s2b">O assistente de recrutamento do CVviews.</div>
+  </div></div></section>
+
+  <!-- 3–4. O app no telemóvel -->
+  <section class="scene" id="s3">
+    <div class="caption" id="cap">
+      <div class="cap-swap">
+        <div id="capA"><div class="k">Dois modos</div><div class="t">Recrutador ou candidato.</div><div class="d">Sugestões feitas para quem contrata e para quem procura.</div></div>
+        <div id="capB"><div class="k">Anexa um CV</div><div class="t">Pede o que precisas.</div><div class="d">PDF, Word ou fotografia. Escreve ou dita por voz.</div></div>
+        <div id="capC"><div class="k">Revisão</div><div class="t">Uma análise em segundos.</div><div class="d">Nota, categorias e o que melhorar, com clareza.</div></div>
+      </div>
+    </div>
+    <div class="phone-wrap" id="pw"><div class="phone" id="phone"><div class="screen" id="screen"></div></div></div>
+  </section>
+
+  <!-- 5. Frases -->
+  <section class="scene" id="s5"><div class="center"><div class="big" id="s5t" style="position:relative;width:1600px;height:140px"></div></div></section>
+
+  <!-- 6. Claro e escuro -->
+  <section class="scene" id="s6">
+    <div style="position:absolute;top:96px;left:0;right:0;text-align:center">
+      <div class="big" id="s6t" style="font-size:84px;letter-spacing:-3px">Claro ou escuro.</div>
+      <div class="sub" id="s6s" style="margin-top:18px;font-size:30px">Instala-o no telemóvel ou no computador.</div>
+    </div>
+    <div class="phone-wrap" id="pwL"><div class="phone"><div class="screen" id="scrL"></div></div></div>
+    <div class="phone-wrap" id="pwR"><div class="phone"><div class="screen dark" id="scrR"></div></div></div>
+  </section>
+
+  <!-- 7. Final -->
+  <section class="scene" id="s7"><div class="center"><div>
+    <div class="brand">
+      <svg viewBox="0 0 40 24"><path class="mark" id="s7mark" pathLength="1" d="M2 17c3-1 4-9 7-9s1 9 4 9 3-11 7-11-1 11 3 11 3-7 6-7 2 6 5 6 3-3 4-4"/></svg>
+      <div class="word" id="s7word">CVviews</div>
+    </div>
+    <div class="sub" id="s7s" style="margin-top:40px">Experimenta o Leo.</div>
+  </div></div></section>
+</div>
+
+<script>
+const DURATION = 42;
+const ICON = {
+  panel: '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>',
+  pen: '<path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/>',
+  list: '<path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/>',
+  file: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>',
+  msg: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/>',
+  users: '<path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/>',
+  pencil: '<path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/>',
+  brief: '<path d="M12 12h.01"/><path d="M16 6V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M22 13a18.15 18.15 0 0 1-20 0"/><rect width="20" height="14" x="2" y="6" rx="2"/>',
+  plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
+  mic: '<path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/>',
+  up: '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+};
+const svg = (name, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24">${ICON[name]}</svg>`;
+const LEO = 'M2 17c3-1 4-9 7-9s1 9 4 9 3-11 7-11-1 11 3 11 3-7 6-7 2 6 5 6 3-3 4-4';
+
+const IDEAS = {
+  recrutador: [['list', 'Grelha de avaliação', 'Requisitos essenciais e desejáveis'], ['file', 'Resumir um CV', 'Experiência e o que confirmar'], ['msg', 'Perguntas de entrevista', 'Avaliar a liderança de equipa'], ['users', 'Comparar candidaturas', 'Critérios iguais para todos']],
+  candidato: [['pencil', 'Melhorar o meu CV', 'Melhorias concretas ao currículo'], ['brief', 'Adaptar a uma vaga', 'Ajustar o CV a um anúncio'], ['msg', 'Preparar entrevista', 'Respostas às perguntas difíceis'], ['file', 'Carta de apresentação', 'Curta, clara e convincente']],
+};
+const ideaCards = (mode, id) => IDEAS[mode].map(([ic, t, h], i) => `<div class="idea" data-k="${id}${i}"><span class="ii">${svg(ic)}</span><strong>${t}</strong><small>${h}</small></div>`).join('');
+const chipHtml = `<div class="chip"><span class="fi">${svg('file')}</span><span><strong>CV_Ana_Silva.pdf</strong><small>PDF · 182 KB</small></span></div>`;
+
+function statusBar() {
+  return `<div class="island"></div><div class="status"><span>9:41</span><span class="ic">
+    <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg>
+    <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 11.5 5.6 8.9a3.4 3.4 0 0 1 4.8 0zM3.4 6.7a6.6 6.6 0 0 1 9.2 0l-1.4 1.4a4.6 4.6 0 0 0-6.4 0zM1 4.3a10 10 0 0 1 14 0l-1.4 1.4a8 8 0 0 0-11.2 0z" fill="currentColor"/></svg>
+    <svg width="27" height="13" viewBox="0 0 27 13"><rect x=".5" y=".5" width="23" height="12" rx="3.5" fill="none" stroke="currentColor" opacity=".4"/><rect x="2.5" y="2.5" width="19" height="8" rx="2" fill="currentColor"/><rect x="25" y="4.5" width="1.6" height="4" rx=".8" fill="currentColor" opacity=".5"/></svg>
+  </span></div><div class="homebar"></div>`;
+}
+
+function homeLayer(p, mode = 'recrutador', name = 'Daniel') {
+  return `<div class="layer" id="${p}home">
+    <div class="topbar"><span class="cbtn">${svg('panel')}</span><span class="cbtn">${svg('pen')}</span></div>
+    <div class="home">
+      <div class="switch" data-k="${p}sw"><i class="knob" id="${p}knob"></i><b id="${p}b0">Recrutador</b><b id="${p}b1">Candidato</b></div>
+      <div class="hello"><p data-k="${p}hn"><svg viewBox="0 0 40 24"><path d="${LEO}" fill="none" stroke-width="2.2" stroke-linecap="round"/></svg>Olá, ${name}!</p><h1 data-k="${p}h1">O que vamos fazer hoje?</h1></div>
+      <div class="ideas" id="${p}ideas">${ideaCards(mode, p + 'r')}<div class="ideas alt" id="${p}alt">${ideaCards(mode === 'recrutador' ? 'candidato' : 'recrutador', p + 'c')}</div></div>
+      <div class="recent" data-k="${p}rc"><header><span>Conversas recentes</span><span>Ver todas</span></header><div class="row">Vaga Product Designer<small>há 2 h</small></div></div>
+    </div>
+    <div class="composer" data-k="${p}cp">
+      <span class="plus">${svg('plus')}</span>
+      <div class="pill"><div class="chips" id="${p}chips">${chipHtml}</div>
+        <div class="pill-row"><span class="txt" id="${p}txt"><span class="ph">Escreve ao Leo…</span></span><span class="mic">${svg('mic')}</span><span class="send" id="${p}send">${svg('up')}</span></div></div>
+    </div>
+  </div>`;
+}
+
+function chatLayer(p) {
+  const cats = [['Experiência', 86], ['Competências', 78], ['Formação', 80], ['Apresentação', 72]];
+  return `<div class="layer" id="${p}chat">
+    <div class="topbar"><span class="cbtn">${svg('panel')}</span><span class="ttl">CV de Ana Silva</span><span class="cbtn">${svg('pen')}</span></div>
+    <div class="chat">
+      <div class="me" data-k="${p}me">${chipHtml}<div class="bubble">Analisa este CV para Product Designer</div></div>
+      <div class="leo-w" data-k="${p}lw"><svg viewBox="0 0 40 24"><path id="${p}lwp" pathLength="1" d="${LEO}"/></svg><span>A pensar</span></div>
+      <div class="rv" data-k="${p}rv">
+        <div class="rv-top" data-k="${p}rt"><div class="ring" id="${p}ring"><span id="${p}score">82</span></div><div><h3>Boa candidatura, com ajustes</h3><small>Product Designer · 4 anos de experiência</small></div></div>
+        <div class="cats">${cats.map(([l, v], i) => `<div class="cat" data-k="${p}cat${i}"><div>${l}<span id="${p}cv${i}" data-v="${v}">${v}</span></div><div class="bar"><i id="${p}bar${i}" style="width:${v}%"></i></div></div>`).join('')}</div>
+        <div class="pts" data-k="${p}pts"><h4>Pontos fortes</h4><ul><li data-k="${p}li0">Portefólio com casos de impacto medido</li><li data-k="${p}li1">Experiência com design systems</li><li data-k="${p}li2">Resultados com métricas claras</li></ul></div>
+      </div>
+    </div>
+    <div class="composer"><span class="plus">${svg('plus')}</span><div class="pill"><div class="pill-row"><span class="txt"><span class="ph">Responde ao Leo…</span></span><span class="mic">${svg('mic')}</span><span class="send" style="opacity:.18">${svg('up')}</span></div></div></div>
+  </div>`;
+}
+
+document.getElementById('screen').innerHTML = statusBar() + chatLayer('m') + homeLayer('m');
+document.getElementById('scrL').innerHTML = statusBar() + homeLayer('l', 'candidato', 'Ana');
+document.getElementById('scrR').innerHTML = statusBar() + chatLayer('d');
+
+// Frases da cena 5, palavra a palavra.
+const PHRASES = ['Analisa currículos.', 'Prepara entrevistas.', 'Compara candidaturas.'];
+document.getElementById('s5t').innerHTML = PHRASES.map((ph, i) => `<div id="ph${i}" style="position:absolute;inset:0;text-align:center">${ph.split(' ').map((w) => `<span class="w"><span>${w}</span></span>`).join(' ')}</div>`).join('');
+for (const id of ['s2a']) { const el = document.getElementById(id); el.innerHTML = el.textContent.split(' ').map((w) => `<span class="w"><span>${w}</span></span>`).join(' '); }
+
+// ---------------- Linha do tempo ----------------
+const $ = (id) => document.getElementById(id);
+const K = (k) => document.querySelector(`[data-k="${k}"]`);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const eo = (x) => 1 - Math.pow(1 - x, 4);
+const eio = (x) => (x < .5 ? 8 * x ** 4 : 1 - Math.pow(-2 * x + 2, 4) / 2);
+const expo = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+const lerp = (a, b, x) => a + (b - a) * x;
+
+function rise(el, t, t0, dur = .8, dy = 18, blur = 8) {
+  if (!el) return;
+  const k = expo(prog(t, t0, t0 + dur));
+  el.style.opacity = k;
+  el.style.transform = `translateY(${(1 - k) * dy}px)`;
+  el.style.filter = blur && k < 1 ? `blur(${(1 - k) * blur}px)` : 'none';
+}
+function scene(id, t, a, b, fin = .4, fout = .4) {
+  const el = $(id);
+  const v = t < a || t > b ? 0 : Math.min(prog(t, a, a + fin), 1 - prog(t, b - fout, b));
+  el.style.opacity = v;
+  el.style.visibility = v > 0 ? 'visible' : 'hidden';
+  return v;
+}
+function words(container, t, t0, step = .09, dur = .9) {
+  container.querySelectorAll('.w > span').forEach((s, i) => {
+    const k = expo(prog(t, t0 + i * step, t0 + i * step + dur));
+    s.style.transform = `translateY(${(1 - k) * 110}%)`;
+  });
+}
+function draw(path, t, a, b) { path.style.strokeDasharray = 1; path.style.strokeDashoffset = 1 - eio(prog(t, a, b)); }
+
+function render(t) {
+  // 1. Marca: a linha do Leo desenha-se e o nome aparece.
+  if (scene('s1', t, 0, 3.4, .01, .5)) {
+    draw($('s1mark'), t, .2, 1.6);
+    rise($('s1word'), t, 1.1, 1, 0, 10);
+    $('s1word').style.transform = `translateX(${(1 - expo(prog(t, 1.1, 2.1))) * -20}px)`;
+    $('s1').style.transform = `scale(${lerp(1, 1.04, prog(t, 0, 3.4))})`;
+  }
+  // 2. Apresentação.
+  if (scene('s2', t, 3.3, 7.6, .2, .5)) {
+    words($('s2a'), t, 3.5, .14);
+    rise($('s2b'), t, 4.9, 1, 16, 8);
+  }
+  // 3–4. Telemóvel.
+  if (scene('s3', t, 7.5, 26.2, .3, .6)) phone(t);
+  // 5. Frases.
+  if (scene('s5', t, 26.0, 31.4, .3, .4)) {
+    PHRASES.forEach((_, i) => {
+      const a = 26.3 + i * 1.6, el = $('ph' + i);
+      words(el, t, a, .1, .8);
+      const out = i < PHRASES.length - 1 ? expo(prog(t, a + 1.3, a + 1.75)) : 0;
+      el.style.opacity = t < a ? 0 : 1 - out;
+      el.style.transform = `translateY(${-out * 50}px)`;
+      el.style.filter = out > 0 && out < 1 ? `blur(${out * 6}px)` : 'none';
+    });
+  }
+  // 6. Claro e escuro.
+  if (scene('s6', t, 31.2, 36.8, .3, .5)) {
+    rise($('s6t'), t, 31.4, 1, 20, 8);
+    rise($('s6s'), t, 31.8, 1, 16, 8);
+    const k = expo(prog(t, 31.6, 33.2)), drift = prog(t, 31.6, 36.8);
+    $('pwL').style.transform = `translate(${-250 - (1 - k) * 60}px, ${150 + (1 - k) * 500 - drift * 20}px) scale(.74)`;
+    $('pwR').style.transform = `translate(${250 + (1 - k) * 60}px, ${170 + (1 - k) * 560 - drift * 30}px) scale(.74)`;
+    $('pwL').firstElementChild.style.transform = `rotateY(${lerp(22, 12, k)}deg) rotateX(${lerp(12, 4, k)}deg) rotateZ(-3deg)`;
+    $('pwR').firstElementChild.style.transform = `rotateY(${lerp(-22, -12, k)}deg) rotateX(${lerp(12, 4, k)}deg) rotateZ(3deg)`;
+  }
+  // 7. Final.
+  if (scene('s7', t, 36.6, DURATION, .3, .9)) {
+    draw($('s7mark'), t, 36.9, 38.2);
+    rise($('s7word'), t, 37.7, 1, 0, 10);
+    rise($('s7s'), t, 38.4, 1, 14, 6);
+  }
+}
+
+// Estado estático dos ecrãs da cena 6.
+(function staticScreens() {
+  const k = $('lknob'); k.style.width = $('lb1').offsetWidth + 'px'; k.style.transform = `translateX(${$('lb0').offsetWidth}px)`;
+  $('lb1').style.color = 'var(--btn-ink)'; $('lalt').style.opacity = 0; $('lchips').style.display = 'none';
+  K('dlw').style.display = 'none'; $('dring').style.background = 'conic-gradient(var(--ink) 82%, var(--line) 0)';
+})();
+
+const TYPED = 'Analisa este CV para Product Designer';
+function phone(t) {
+  // Entrada com inclinação, como uma fotografia de produto.
+  const enter = expo(prog(t, 7.6, 9.4));
+  const toSide = eio(prog(t, 10.2, 11.2));           // vai para a direita e entra a legenda
+  const zoomIn = eio(prog(t, 15.6, 16.6));           // aproxima ao compositor
+  const zoomOut = eio(prog(t, 19.9, 20.9));
+  const zoom = zoomIn * (1 - zoomOut);
+  const x = lerp(0, 330, toSide) - zoom * 0;
+  const y = (1 - enter) * 700 + zoom * -600 + lerp(0, -10, prog(t, 7.6, 26));
+  const s = lerp(.98, .98, enter) * lerp(1, 1.75, zoom);
+  $('pw').style.transform = `translate(${x}px, ${y}px) scale(${s})`;
+  const rx = lerp(26, 6, enter) * (1 - zoom) , ry = lerp(-18, -8, enter) * (1 - zoom) + toSide * 4 * (1 - zoom), rz = lerp(-4, -1.5, enter) * (1 - zoom);
+  $('phone').style.transform = `rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg)`;
+
+  // Legendas.
+  const capIn = (id, a, b) => {
+    const el = $(id), i = expo(prog(t, a, a + .9)), o = b ? eio(prog(t, b, b + .5)) : 0;
+    el.style.opacity = i * (1 - o);
+    el.style.transform = `translateY(${(1 - i) * 24 - o * 24}px)`;
+    el.style.filter = i < 1 || o > 0 ? `blur(${(1 - i) * 8 + o * 8}px)` : 'none';
+  };
+  capIn('capA', 10.7, 15.2); capIn('capB', 16.2, 20.2); capIn('capC', 21.0, 0);
+  $('cap').style.transform = `translate(${-zoom * 0}px, -50%)`;
+
+  // Ecrã inicial: os blocos entram por ordem.
+  const T = 8.4;
+  rise(K('msw'), t, T); rise(K('mhn'), t, T + .12); rise(K('mh1'), t, T + .22);
+  for (let i = 0; i < 4; i++) rise(K('mr' + i), t, T + .4 + i * .08, .9, 22, 6);
+  rise(K('mrc'), t, T + .8); rise(K('mcp'), t, T + .9);
+
+  // Troca de modo: Recrutador → Candidato → Recrutador.
+  const b0 = $('mb0'), b1 = $('mb1'), knob = $('mknob');
+  const m1 = eio(prog(t, 11.9, 12.4)), m2 = eio(prog(t, 14.2, 14.7));
+  const m = m1 * (1 - m2);
+  knob.style.width = lerp(b0.offsetWidth, b1.offsetWidth, m) + 'px';
+  knob.style.transform = `translateX(${lerp(0, b0.offsetWidth, m)}px)`;
+  b0.style.color = m < .5 ? 'var(--btn-ink)' : 'var(--ink-2)';
+  b1.style.color = m >= .5 ? 'var(--btn-ink)' : 'var(--ink-2)';
+  const cardsA = 1 - expo(prog(t, 12.0, 12.4)) + expo(prog(t, 14.4, 14.9));
+  for (let i = 0; i < 4; i++) {
+    const r = K('mr' + i), c = K('mc' + i);
+    if (t > 11.9) { const k1 = clamp(1 - expo(prog(t, 12.0 + i * .05, 12.35 + i * .05)) + expo(prog(t, 14.45 + i * .05, 15.1 + i * .05))); r.style.opacity = k1; r.style.transform = `translateY(${(1 - k1) * -8}px)`; r.style.filter = 'none'; }
+    const k2 = clamp(expo(prog(t, 12.2 + i * .06, 12.9 + i * .06)) - expo(prog(t, 14.2 + i * .05, 14.5 + i * .05)));
+    c.style.opacity = k2; c.style.transform = `translateY(${(1 - k2) * 10}px)`;
+  }
+
+  // Anexo e escrita.
+  const chips = $('mchips');
+  const ch = expo(prog(t, 16.6, 17.3));
+  chips.style.display = ch > 0 ? 'block' : 'none';
+  chips.style.opacity = ch; chips.style.transform = `translateY(${(1 - ch) * 8}px)`;
+  const n = Math.round(clamp((t - 17.4) / 1.9) * TYPED.length);
+  const caretOn = t > 17.2 && t < 19.6 && (Math.floor(t * 2.2) % 2 === 0 || (t > 17.4 && t < 19.3));
+  $('mtxt').innerHTML = n > 0 ? TYPED.slice(0, n) + (caretOn ? '<i class="caret"></i>' : '') : (caretOn ? '<i class="caret"></i>' : '<span class="ph">Escreve ao Leo…</span>');
+  const sendReady = t > 16.8;
+  const press = prog(t, 19.45, 19.6) * (1 - prog(t, 19.6, 19.8));
+  $('msend').style.opacity = sendReady ? 1 : .18;
+  $('msend').style.transform = `scale(${(sendReady ? 1 : .9) - press * .12})`;
+
+  // Passa para a conversa.
+  const toChat = eio(prog(t, 19.8, 20.3));
+  $('mhome').style.opacity = 1 - toChat;
+  $('mhome').style.transform = `translateY(${-toChat * 20}px)`;
+  $('mchat').style.opacity = toChat;
+  rise(K('mme'), t, 20.0, .8, 30, 4);
+  const lw = K('mlw');
+  rise(lw, t, 20.4, .5, 10, 0);
+  if (t > 21.6) lw.style.opacity = 1 - prog(t, 21.6, 21.8);
+  lw.style.display = t > 21.8 ? 'none' : 'flex';
+  const lp = $('mlwp'); lp.style.strokeDasharray = 1;
+  const cyc = ((t - 20.4) % 1) / 1; lp.style.strokeDashoffset = 1 - eio(clamp(cyc * 1.4));
+  const rv = K('mrv'); rv.style.display = t > 21.8 ? 'flex' : 'none';
+  rise(K('mrt'), t, 21.8, .8, 14, 6);
+  const sc = Math.round(eo(prog(t, 22.0, 23.4)) * 82);
+  $('mscore').textContent = sc;
+  $('mring').style.background = `conic-gradient(var(--ink) ${sc}%, var(--line) 0)`;
+  for (let i = 0; i < 4; i++) {
+    rise(K('mcat' + i), t, 22.3 + i * .12, .8, 14, 4);
+    const v = +$('mcv' + i).dataset.v, k = eo(prog(t, 22.5 + i * .12, 23.8 + i * .12));
+    $('mcv' + i).textContent = Math.round(v * k);
+    $('mbar' + i).style.transform = `scaleX(${k})`;
+  }
+  rise(K('mpts'), t, 23.2, .8, 12, 4);
+  for (let i = 0; i < 3; i++) rise(K('mli' + i), t, 23.4 + i * .15, .8, 10, 3);
+}
+
+window.render = render;
+window.DURATION = DURATION;
+
+// Pré-visualização: encaixa o palco na janela e corre em ciclo. ?t=12 para parar num instante.
+const params = new URLSearchParams(location.search);
+if (!params.has('capture')) {
+  const fit = () => { const s = Math.min(innerWidth / 1920, innerHeight / 1080); $('stage').style.transform = `scale(${s})`; };
+  addEventListener('resize', fit); fit();
+  document.fonts.ready.then(() => {
+    if (params.has('t')) return render(+params.get('t'));
+    const start = performance.now();
+    const loop = (now) => { render(((now - start) / 1000) % DURATION); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  });
+}
+</script>
+</body>
+</html>
