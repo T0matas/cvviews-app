@@ -50,12 +50,15 @@ export function blankUnknownNumbers(text: string, ...sources: string[]) {
   if (typeof text !== 'string') return text;
   const tidy = text.replace(/(?<![\p{L}\p{N}\[])([XYZWVNM])(?=\s?%)/gu, '[$1]');
   const known = new Set((sources.join(' ').match(/\d+(?:[.,]\d+)?/g) || []).map((n) => n.replace(',', '.')));
+  // Uma percentagem só vale se essa mesma percentagem estiver no CV: "20 chamadas" ou "20XX" não autorizam "20%".
+  const knownPct = new Set([...sources.join(' ').matchAll(/(\d+(?:[.,]\d+)?)\s?%/g)].map((m) => m[1].replace(',', '.')));
   const taken = new Set([...tidy.matchAll(/\[([A-Z])(?:\s?%)?\]/g)].map((m) => m[1]));
   const free = ['X', 'Y', 'Z', 'W', 'V', 'N', 'M'].filter((l) => !taken.has(l));
   const blanks = new Map<string, string>();
-  return tidy.replace(/(?<![\p{L}\p{N}\[.,])\d+(?:[.,]\d+)?(?![\p{L}\p{N}\]])/gu, (n) => {
+  return tidy.replace(/(?<![\p{L}\p{N}\[.,])\d+(?:[.,]\d+)?(?![\p{L}\p{N}\]])/gu, (n, at: number) => {
     const key = n.replace(',', '.');
-    if (known.has(key)) return n;
+    const pct = /^\s?%/.test(tidy.slice(at + n.length));
+    if (pct ? knownPct.has(key) : known.has(key)) return n;
     if (!blanks.has(key)) blanks.set(key, free[blanks.size % free.length] || 'X');
     return `[${blanks.get(key)}]`;
   });
