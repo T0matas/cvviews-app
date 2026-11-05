@@ -66,11 +66,13 @@ button { cursor: pointer; border: 0; background: none; padding: 0; -webkit-user-
 
 /* Estrutura */
 .app { height: 100dvh; display: grid; grid-template-columns: var(--rail-w) 0 1fr; transition: grid-template-columns .4s var(--ease); }
-.app.panel-open { grid-template-columns: var(--rail-w) var(--sidebar-w) 1fr; }
+/* Com a lista aberta, a faixa de ícones sai: fica só uma barra lateral. */
+.app.panel-open { grid-template-columns: 0 var(--sidebar-w) 1fr; }
 .scrim { display: none; }
 
 /* Faixa de ícones (PC) */
-.rail { min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 26px 0 calc(22px + env(safe-area-inset-bottom)); border-right: 1px solid var(--line); background: var(--rail); }
+.rail { min-height: 0; min-width: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 26px 0 calc(22px + env(safe-area-inset-bottom)); border-right: 1px solid var(--line); background: var(--rail); }
+.app.panel-open .rail { visibility: hidden; border-right-color: transparent; transition: visibility 0s .4s; }
 .rail-logo { position: relative; width: 52px; height: 52px; display: grid; place-items: center; margin-bottom: 28px; color: var(--ink); }
 .rail-logo > * { grid-area: 1 / 1; transition: opacity .18s var(--ease), transform .25s var(--ease); }
 .rail-logo .logo { width: 40px; height: 24px; }
