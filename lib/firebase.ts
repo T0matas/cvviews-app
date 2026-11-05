@@ -6,7 +6,9 @@ import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyArp3G2y8LTFukY8Q0hy-xPub-H_Ht4O8U',
-  authDomain: 'cvviews-26241.firebaseapp.com',
+  // Em cvviews.me a entrada com a Google passa pelo próprio site (ver next.config.ts); noutros endereços
+  // (localhost, pré-visualizações da Vercel) continua pelo domínio da Firebase.
+  authDomain: typeof window !== 'undefined' && /(^|\.)cvviews\.me$/.test(window.location.hostname) ? window.location.hostname : 'cvviews-26241.firebaseapp.com',
   projectId: 'cvviews-26241',
   storageBucket: 'cvviews-26241.firebasestorage.app',
   messagingSenderId: '1000049135591',
