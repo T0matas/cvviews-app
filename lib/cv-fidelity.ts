@@ -12,13 +12,15 @@ export function alike(a: string, b: string) {
 }
 
 const PLACEHOLDER = /\[[A-Z](?:\s?%)?\]/;
-const LOREM = /lorem|ipsum|dolor sit|consectetur/i;
+// Texto de exemplo dos modelos de CV ("lorem ipsum…"), mesmo mal lido de uma fotografia: nunca é conteúdo.
+const LOREM_WORDS = new Set('lorem ipsum dolor amet consectetur adipiscing elit eiusmod tempor incididunt labore dolore magna aliqua quis suspendisse ultrices gravida risus commodo commode viverra maecenas accumsan lacus facilisis nostrud exercitation ullamco laboris nisi aliquip commodo consequat duis aute irure reprehenderit voluptate velit esse cillum fugiat nulla pariatur excepteur sint occaecat cupidatat proident sunt culpa officia deserunt mollit anim'.split(' '));
+const isLorem = (s: string) => (String(s).toLowerCase().match(/\p{L}+/gu) || []).filter((w) => LOREM_WORDS.has(w)).length >= 2;
 const clean = (s: string) => s.replace(/^[\s\-•*·▪●◦–—>]+/, '').replace(/\s+/g, ' ').trim();
 
 type Rewrite = Review['rewrites'][number];
 
 export function keepFaithful(full: FullCv, cvText: string, rewrites: Rewrite[]): FullCv {
-  const original = String(cvText).split(/\r?\n/).map(clean).filter((l) => l.split(' ').length >= 4);
+  const original = String(cvText).split(/\r?\n/).map(clean).filter((l) => l.split(' ').length >= 4 && !isLorem(l));
   const fromReview = (line: string) => rewrites.some((w) => alike(line, w.improved) >= 0.75);
 
   // 1. Um espaço para preencher ([X]) só pode vir de uma linha que a revisão reescreveu. Os outros são
@@ -39,7 +41,7 @@ export function keepFaithful(full: FullCv, cvText: string, rewrites: Rewrite[]):
   const covered = (o: string) => all().some((l) => alike(l, o) >= 0.6) || rewrites.some((w) => alike(w.original, o) >= 0.6 && all().some((l) => alike(l, w.improved) >= 0.6));
   for (let i = 0; i < original.length; i++) {
     const o = original[i];
-    if (o.split(' ').length < 6 || LOREM.test(o) || /@|https?:|www\./.test(o) || covered(o)) continue;
+    if (o.split(' ').length < 6 || /@|https?:|www\./.test(o) || covered(o)) continue;
     // a frase anterior do CV que está no corrigido diz onde esta pertence
     for (let k = i - 1; k >= Math.max(0, i - 4); k--) {
       let placed = false;

@@ -19,7 +19,7 @@ const ORDER: [RegExp, number][] = [
   [/projet|project|portf|proyect/, 2],
   [/educa|forma|academ|estud|studi|ausbildung|istruzion|formaci/, 3],
   [/certif|curso|course|training|licen|forma[cç][aã]o complementar/, 4],
-  [/compet|skill|aptid|ferrament|tecnolog|conhecimento|habilidad|kompetenz|competenz|outils|tools/, 5],
+  [/compet|skill|expertise|especiali|aptid|ferrament|tecnolog|conhecimento|habilidad|kompetenz|competenz|outils|tools/, 5],
   [/idioma|lingua|language|langue|sprach|lingue/, 6],
   [/volunt|benevol|ehrenamt/, 7],
   [/interess|hobb|loisir|interest|aficion/, 8],

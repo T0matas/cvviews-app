@@ -8,7 +8,7 @@ import type { CvStyle } from '@/lib/markup.js';
 
 type Section = FullCv['sections'][number];
 
-export const isChipSection = (title: string) => /compet|skill|aptid|ferrament|tecnolog|idioma|lingua|language|interess|hobb|softw|tools|conhecimento/i.test(title);
+export const isChipSection = (title: string) => /compet|skill|expertise|especiali|aptid|ferrament|tecnolog|idioma|lingua|language|interess|hobb|softw|tools|conhecimento/i.test(title);
 const isProfile = (title: string) => /perfil|profile|resumo|summary|sobre|about|objetiv/i.test(title);
 
 // Uma linha "A · B · C" (ou "A, B, C" de itens curtos) vira etiquetas.
