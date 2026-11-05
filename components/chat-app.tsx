@@ -4,7 +4,7 @@ import { type ChangeEvent, type DragEvent, type FormEvent, useCallback, useEffec
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import {
   ArrowDown, ArrowUp, BriefcaseBusiness, Check, ChevronDown, ChevronRight, Copy, FileText, Globe, Image as ImageIcon, ListChecks, Loader2, LogIn, LogOut, MessageSquareText,
-  Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings as Gear, Settings2,
+  Mic, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings as Gear, Settings2,
   Square, SquarePen, Trash2, UserRound, UsersRound, X,
 } from 'lucide-react';
 import AuthDialog from './auth-dialog';
@@ -567,7 +567,10 @@ export default function ChatApp() {
 
       {/* PC: a faixa de ícones, sempre à vista. */}
       <nav className="rail" aria-label="Navegação">
-        <button className="rail-logo" onClick={newChat} aria-label="CVviews, nova conversa" title="Nova conversa"><Logo /></button>
+        <button className="rail-logo" onClick={() => setPanelOpen(!panelOpen)} aria-label={panelOpen ? 'Fechar barra lateral' : 'Abrir barra lateral'} aria-expanded={panelOpen} title={panelOpen ? 'Fechar barra lateral' : 'Abrir barra lateral'}>
+          <Logo />
+          <span className="rail-logo-hover">{panelOpen ? <PanelLeftClose size={20} strokeWidth={1.7} /> : <PanelLeftOpen size={20} strokeWidth={1.7} />}</span>
+        </button>
         <button className="rail-btn is-on" onClick={() => setPanelOpen(!panelOpen)} aria-label="Conversas" aria-expanded={panelOpen} title="Conversas"><MessageSquareText size={21} strokeWidth={1.7} /></button>
         <button className="rail-btn" onClick={focusSearch} aria-label="Pesquisar conversas" title="Pesquisar conversas"><Search size={21} strokeWidth={1.7} /></button>
         <div className="rail-foot">

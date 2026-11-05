@@ -71,8 +71,13 @@ button { cursor: pointer; border: 0; background: none; padding: 0; -webkit-user-
 
 /* Faixa de ícones (PC) */
 .rail { min-height: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 26px 0 calc(22px + env(safe-area-inset-bottom)); border-right: 1px solid var(--line); background: var(--rail); }
-.rail-logo { width: 52px; height: 52px; display: grid; place-items: center; margin-bottom: 28px; border-radius: 16px; color: var(--ink); }
+.rail-logo { position: relative; width: 52px; height: 52px; display: grid; place-items: center; margin-bottom: 28px; color: var(--ink); }
+.rail-logo > * { grid-area: 1 / 1; transition: opacity .18s var(--ease), transform .25s var(--ease); }
 .rail-logo .logo { width: 40px; height: 24px; }
+/* Ao passar o cursor, a marca dá lugar ao botão de abrir/fechar a barra lateral. */
+.rail-logo-hover { width: 46px; height: 46px; display: grid; place-items: center; border: 1px solid var(--line-2); border-radius: 50%; color: var(--ink); background: var(--bg-2); opacity: 0; transform: scale(.85); }
+.rail-logo:hover .logo, .rail-logo:focus-visible .logo { opacity: 0; transform: scale(.85); }
+.rail-logo:hover .rail-logo-hover, .rail-logo:focus-visible .rail-logo-hover { opacity: 1; transform: none; }
 .rail-btn { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 16px; color: var(--ink-2); transition: background .15s, color .15s; }
 .rail-btn:hover { color: var(--ink); background: var(--bg-2); }
 .rail-btn.is-on { color: var(--ink); background: var(--bg-3); }
