@@ -4,7 +4,7 @@
 const fs = require('fs');
 
 const SR = 44100;
-const DUR = 42;
+const DUR = 40;
 const N = SR * DUR;
 const L = new Float32Array(N), R = new Float32Array(N);       // mistura seca
 const RL = new Float32Array(N), RR = new Float32Array(N);     // envio para a reverberação
@@ -104,65 +104,80 @@ function shimmer(t0, dur, amp = .03) {
   for (let i = 0; i < 14; i++) keys(t0 + i * dur / 14, notes[i % notes.length] - (i < 7 ? 12 : 0), .4, amp * (.4 + i / 20), (i % 2 ? .4 : -.4), .8);
 }
 
+// Caneta a riscar o papel: ruído agudo e curto, a variar.
+function scratch(t0, dur = .35, amp = .05, pan = 0) {
+  const s0 = Math.floor(t0 * SR), len = Math.floor(dur * SR);
+  let lp = 0, bp = 0;
+  for (let k = 0; k < len; k++) {
+    const x = k / len, fc = 3200 + Math.sin(x * 40) * 900, F = 2 * Math.sin(Math.PI * fc / SR);
+    const hp = rand() - lp - .4 * bp; bp += F * hp; lp += F * bp;
+    add(s0 + k, bp * Math.sin(Math.PI * x) * (.6 + .4 * Math.abs(Math.sin(x * 23))) * amp, pan, .2);
+  }
+}
+
 // ---------------- Música ----------------
-// Acordes alinhados com as mudanças de cena.
+// Calma e luminosa, como nos vídeos de produto: acordes alinhados com as mudanças de cena.
 const C = { C: [48, 55, 59, 64, 67], Am: [45, 52, 55, 60, 64], F: [41, 48, 52, 57, 60], G: [43, 50, 55, 57, 62], Em: [40, 47, 52, 55, 59] };
-const prog = [[0, 'C'], [3.4, 'Am'], [7.6, 'F'], [11.9, 'C'], [15.6, 'Am'], [19.9, 'F'], [23.4, 'G'], [26.0, 'Em'], [28.8, 'F'], [31.2, 'Am'], [33.9, 'F'], [36.6, 'G'], [37.7, 'C']];
+const prog = [[0, 'C'], [3.5, 'Am'], [7.5, 'F'], [11.5, 'C'], [16.1, 'Am'], [19.5, 'F'], [21.8, 'G'], [25.0, 'Em'], [27.4, 'F'], [29.4, 'Am'], [32.4, 'F'], [35.6, 'G'], [37.0, 'C']];
 prog.forEach(([t, c], i) => {
   const t1 = i + 1 < prog.length ? prog[i + 1][0] : DUR - 2;
   pad(t, t1, C[c].slice(1).map((m) => m + 12), .045);
-  if (t >= 3.4) bass(t, t1, C[c][0] - 12, t >= 7.6 ? .1 : .06);
+  if (t >= 3.5) bass(t, t1, C[c][0] - 12, t >= 7.5 ? .1 : .06);
 });
-// Arpejo: começa quando o app aparece.
-const BEAT = 60 / 104 / 2;
-for (let t = 7.6; t < 36.4; t += BEAT) {
+// Arpejo de piano: começa quando a app aparece e pára antes do final.
+const BEAT = 60 / 100 / 2;
+for (let t = 7.5; t < 35.4; t += BEAT) {
   const c = prog.filter(([pt]) => pt <= t + .001).pop()[1];
-  const k = Math.round((t - 7.6) / BEAT), tones = C[c].slice(1);
+  const k = Math.round((t - 7.5) / BEAT), tones = C[c].slice(1);
   const pattern = [0, 2, 1, 3, 2, 1, 3, 2];
   const m = tones[pattern[k % 8]] + 12 + (k % 16 >= 12 ? 12 : 0);
   const accent = k % 4 === 0 ? 1 : .7;
-  const fade = Math.min(1, (t - 7.6) / 2);
-  keys(t, m, .35, .05 * accent * fade, (k % 2 ? .3 : -.3), .5);
+  const fade = Math.min(1, (t - 7.5) / 2) * Math.min(1, (35.4 - t) / 1.2);
+  keys(t, m, .35, .045 * accent * fade, (k % 2 ? .3 : -.3), .5);
 }
 // Final: o acorde abre e fica.
-[60, 64, 67, 71, 74, 79].forEach((m, i) => keys(37.7 + i * .06, m, 3.2, .07, (i - 2.5) * .12, .7));
-keys(37.7, 36, 3.5, .12, 0, .3);
+[60, 64, 67, 71, 74, 79].forEach((m, i) => keys(37.0 + i * .06, m, 3.2, .07, (i - 2.5) * .12, .7));
+keys(37.0, 36, 3.5, .12, 0, .3);
 
-// ---------------- Efeitos sincronizados ----------------
-shimmer(.1, 1.1, .035);
-chime(1.15, 76, .05);                                  // nome aparece
-whoosh(3.15, 1.1, .1, 250, 1800);                     // "Conhece o Leo."
-[3.5, 3.64, 3.78].forEach((t) => pop(t + .05, .035, 900, 600));
-whoosh(7.3, 1.5, .16, 180, 1400);                     // telemóvel entra
-[8.4, 8.52, 8.62].forEach((t, i) => pop(t, .04, 1000 + i * 60, 600));
-[8.8, 8.88, 8.96, 9.04].forEach((t, i) => pop(t, .05, 1200 + i * 80, 650, (i % 2 ? .3 : -.3)));
-whoosh(10.05, 1.2, .09, 400, 1600, 1);                // vai para a direita
-click(11.9, .09, .3, 1800); pop(11.95, .05, 900, 700, .3);   // troca para Candidato
-[12.2, 12.26, 12.32, 12.38].forEach((t, i) => pop(t, .04, 1300 + i * 70, 700, .3));
-click(14.2, .09, .3, 1800); pop(14.25, .05, 800, 600, .3);   // volta a Recrutador
-[14.45, 14.5, 14.55, 14.6].forEach((t, i) => pop(t, .035, 1200 + i * 70, 700, .3));
-whoosh(15.45, 1.3, .12, 200, 1200);                   // aproxima
-pop(16.6, .08, 1400, 700, .2); chime(16.65, 88, .02, .2);     // anexo
-const TYPED = 'Analisa este CV para Product Designer';
-for (let i = 1; i <= TYPED.length; i++) {             // teclado
-  const t = 17.4 + (i / TYPED.length) * 1.9 - .02;
-  if (TYPED[i - 1] !== ' ') click(t + (rand() * .012), .045 + rand() * .01, .2, 2200 + rand() * 600);
-  else click(t, .06, .2, 1500);
+// ---------------- Efeitos sincronizados com cvviews-promo.html ----------------
+shimmer(.1, 1.2, .035);
+chime(1.35, 76, .05);                                   // o nome aparece
+whoosh(3.3, 1.1, .1, 250, 1800);                        // "Conheça o Leo."
+[3.8, 3.94, 4.08].forEach((t) => pop(t + .05, .035, 900, 600));
+pop(5.05, .03, 800, 600);
+whoosh(7.3, 1.5, .15, 180, 1400);                       // a janela da app entra
+click(9.5, .09, -.2, 1800); pop(9.55, .07, 1400, 700, -.2); chime(9.62, 88, .02, -.2);   // anexa o CV
+const TYPED = 'Revê o meu CV para Product Designer';
+for (let i = 1; i <= TYPED.length; i++) {               // teclado
+  const t = 10.4 + (i / TYPED.length) * 1.8 - .02;
+  if (TYPED[i - 1] !== ' ') click(t + rand() * .012, .045 + rand() * .01, .1, 2200 + rand() * 600);
+  else click(t, .06, .1, 1500);
 }
-click(19.5, .12, .2, 1400); pop(19.52, .07, 700, 380, .2);   // enviar
-whoosh(19.55, .9, .1, 600, 3000, .3);
-whoosh(19.85, 1.0, .07, 300, 1200);                   // passa para a conversa
-pop(20.1, .05, 1000, 600, .2);
-for (let i = 0; i < 14; i++) click(22.0 + i * .1 * (1 + i * .03), .022, .25, 3200 + i * 40);   // nota a contar
-[22.3, 22.42, 22.54, 22.66].forEach((t, i) => pop(t, .04, 1300 + i * 80, 700, .25));
-chime(23.45, 83, .06, .2); chime(23.5, 88, .04, .2); // nota final
-[23.4, 23.55, 23.7].forEach((t) => pop(t, .03, 1100, 700, .25));
-whoosh(25.7, 1.1, .12, 1800, 300);                    // sai do telemóvel
-[26.3, 27.9, 29.5].forEach((t, i) => { whoosh(t - .25, .7, .07, 500, 2200); pop(t + .05, .045, 900 + i * 120, 600); });
-whoosh(31.0, 1.4, .14, 180, 1400);                    // dois telemóveis
-whoosh(36.35, 1.1, .1, 1600, 250);                    // final
-shimmer(36.9, 1.0, .03);
-chime(37.75, 72, .07); chime(37.8, 79, .05, .2); chime(37.85, 84, .04, -.2);
+click(12.7, .12, .3, 1400); pop(12.72, .07, 700, 380, .3);   // enviar
+whoosh(12.85, .8, .08, 500, 2600, .2);
+for (let i = 0; i < 6; i++) keys(13.25 + i * .16, [84, 88, 91][i % 3], .3, .015, .2, .8);   // o Leo a pensar
+for (let i = 0; i < 14; i++) click(14.3 + i * .07 * (1 + i * .04), .022, .2, 3200 + i * 40);   // a nota a contar
+chime(15.25, 83, .05, .2); chime(15.3, 88, .035, .2);
+whoosh(16.0, 1.1, .1, 1600, 300);                       // "Uma nota honesta."
+[17.1, 17.45, 17.8].forEach((t, i) => pop(t, .045, 1000 + i * 90, 600, .3));
+pop(18.65, .05, 1100, 650, .3);
+scratch(19.5, .65, .05, .3);                            // a linha antiga é riscada
+chime(20.35, 79, .045, .3); chime(20.4, 86, .03, .3);  // a nova aparece
+whoosh(21.8, 1.2, .12, 220, 1600);                      // "O teu CV corrigido."
+[22.0, 22.12, 22.24].forEach((t) => pop(t + .05, .03, 900, 600));
+scratch(23.4, .4, .05, -.4); scratch(23.7, .4, .05, -.4); scratch(24.6, .35, .05, -.2);   // a caneta
+pop(24.15, .05, 1200, 700, -.3); pop(25.05, .05, 1300, 700, -.2);   // as notas
+pop(25.85, .08, 900, 450); whoosh(26.2, .9, .1, 400, 2400, .5);     // a seta e o CV corrigido
+chime(27.0, 84, .05, .4); chime(27.06, 91, .03, .4);
+whoosh(29.2, 1.4, .14, 180, 1300);                      // o telemóvel entra
+[30.6, 30.72, 30.84, 30.96].forEach((t, i) => pop(t, .04, 1000 + i * 70, 600, .3));
+click(31.9, .08, .3, 1800); pop(31.95, .05, 900, 700, .3);   // troca para Candidato
+click(32.9, .08, .3, 1800); pop(32.95, .05, 800, 600, .3);   // volta
+whoosh(33.05, .8, .09, 300, 1800, -.4);                // a gaveta abre
+whoosh(34.95, .7, .07, 1800, 400, .4);                 // e fecha
+whoosh(35.4, 1.2, .11, 1600, 250);                      // final
+shimmer(36.2, 1.0, .03);
+chime(37.0, 72, .07); chime(37.05, 79, .05, .2); chime(37.1, 84, .04, -.2);
 
 // ---------------- Mistura ----------------
 // Pad filtrado (passa-baixo), em estéreo largo.
