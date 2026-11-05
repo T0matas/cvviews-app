@@ -31,12 +31,27 @@ export function contactIcon(text: string) {
 
 const Blanks = ({ s }: { s: string }) => <>{String(s).split(/(\[[^\]\n]{1,14}\])/g).map((part, i) => (/^\[[^\]]+\]$/.test(part) ? <mark className="cvdoc-blank" key={i}>{part}</mark> : part))}</>;
 
-function SectionView({ s, inSide }: { s: Section; inSide: boolean }) {
+// A mesma chave que markup.js usa para os níveis: só letras e números, sem acentos.
+const levelKey = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^a-z0-9%+#]/g, '');
+
+function SectionView({ s, inSide, bars, levels }: { s: Section; inSide: boolean; bars: { track: boolean } | null; levels: Record<string, number> }) {
   const chips = isChipSection(s.title) && s.entries.every((e) => !e.title || !e.lines.length);
+  const items = chipsOf(s.entries.flatMap((e) => [e.title, ...e.lines].filter(Boolean)));
   return (
     <section className="cvx-sec">
       <h3>{s.title}</h3>
-      {chips ? (
+      {bars ? (
+        // Níveis desenhados como barras, como no original.
+        <div className={`cvx-bars${inSide ? ' one' : ''}`}>{items.map((c, i) => {
+          const level = levels[levelKey(c)];
+          return (
+            <div className="cvx-bar-row" key={i}>
+              <span>{c}</span>
+              {level != null && <i className={bars.track ? 'track' : ''}><b style={{ width: `${Math.round(level * 100)}%` }} /></i>}
+            </div>
+          );
+        })}</div>
+      ) : chips ? (
         <div className="cvx-chips">{chipsOf(s.entries.flatMap((e) => [e.title, ...e.lines].filter(Boolean))).map((c, i) => <span key={i}>{c}</span>)}</div>
       ) : (
         s.entries.map((e, i) => {
@@ -91,7 +106,7 @@ export default function CvStyled({ f, style: st }: { f: FullCv; style: CvStyle }
     if (st.header === which) parts.push(<div key="h">{header}</div>);
     else if (st.photo?.column === which) parts.push(<div key="p" className="cvx-photo-wrap">{photo}</div>);
     if (which === 'side' && st.contact === 'side' && f.contact.length) parts.push(<section className="cvx-sec" key="c"><h3>{/[ãçõé]|ção/i.test(f.sections.map((s) => s.title).join(' ')) ? 'Contacto' : 'Contact'}</h3>{contactList}</section>);
-    f.sections.forEach((s, i) => { if (st.sections[i] === which) parts.push(<SectionView key={i} s={s} inSide={which === 'side'} />); });
+    f.sections.forEach((s, i) => { if (st.sections[i] === which) parts.push(<SectionView key={i} s={s} inSide={which === 'side'} bars={st.barSections?.[i] ?? null} levels={st.levels || {}} />); });
     return parts;
   };
 

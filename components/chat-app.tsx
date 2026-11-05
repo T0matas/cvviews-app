@@ -174,12 +174,23 @@ export default function ChatApp() {
   useEffect(() => { if (atBottom) scrollToBottom(); }, [messages, atBottom, scrollToBottom]);
   useEffect(() => { setAtBottom(true); scrollToBottom(); }, [activeId, scrollToBottom]);
 
+  // A caixa cresce com o texto. Mede-se só quando tem largura a sério (medida estreita, o texto de exemplo partia
+  // letra a letra e a caixa ficava enorme e vazia) e volta a medir-se quando a largura muda.
+  const hasMessages = messages.length > 0;
   useEffect(() => {
     const el = inputRef.current;
     if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
-  }, [draft]);
+    const fit = () => {
+      if (el.clientWidth < 80) return;
+      el.style.height = 'auto';
+      el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
+    };
+    fit();
+    let width = el.clientWidth;
+    const watch = new ResizeObserver(() => { if (Math.abs(el.clientWidth - width) > 1) { width = el.clientWidth; fit(); } });
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [draft, hasMessages, pending.length, wide]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

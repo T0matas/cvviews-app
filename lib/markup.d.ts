@@ -19,6 +19,8 @@ export type CvLayout = {
   serif: boolean;
   font: string | null;
   words: { norm: string; text: string; page: number; line: string; x: number; y: number }[];
+  /** Barras de nível ao lado de competências ou línguas, em fração da largura da folha. */
+  bars: { norm: string; fill: number; total: number | null; x: number; y: number; sx?: number; ix?: number; yc?: number; h?: number }[];
 };
 
 /** Onde fica cada parte do CV corrigido, no mesmo desenho do original. */
@@ -41,6 +43,10 @@ export type CvStyle = {
   nameUpper: boolean;
   serif: boolean;
   font: string | null;
+  /** Nível (0 a 1) de cada competência ou língua desenhada com uma barra no original, pela chave normalizada. */
+  levels: Record<string, number>;
+  /** Para cada secção: se é mostrada com barras, e se as barras tinham um fundo mais claro. */
+  barSections: ({ track: boolean } | null)[];
 };
 
 export function drawCorrections(input: {

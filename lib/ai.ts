@@ -43,14 +43,37 @@ export async function imageToText(dataUrl: string, signal?: AbortSignal) {
     messages: [{
       role: 'user',
       content: [
-        { type: 'text', text: 'Transcribe all the text in this image exactly as written, keeping the line breaks and section order. Output only the text, nothing else. If the image has no readable text, output NO_TEXT.' },
+        { type: 'text', text: 'Transcribe all the text of the CV page in this image exactly as written, once, keeping the line breaks and section order. Leave out text outside the page (captions, labels or watermarks around it). Output only the text, nothing else. If the image has no readable text, output NO_TEXT.' },
         { type: 'image_url', image_url: { url: dataUrl } },
       ],
     }],
   }, signal);
   const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
   const text = String(data.choices?.[0]?.message?.content || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-  return text === 'NO_TEXT' ? '' : text;
+  return text === 'NO_TEXT' ? '' : cleanTranscript(text);
+}
+
+// O modelo de visão às vezes fica preso: transcreve a página toda uma segunda vez e depois repete a mesma linha
+// até ao fim. Isso duplicava secções e entradas no CV corrigido. Fica só a primeira transcrição.
+export function cleanTranscript(text: string) {
+  // 1. A mesma linha várias vezes seguidas fica uma vez.
+  const lines: string[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    const last = [...lines].reverse().find((l) => l.trim());
+    if (line.trim() && last && last.trim() === line.trim()) continue;
+    lines.push(line);
+  }
+  let out = lines.join('\n');
+  // 2. Quando a transcrição recomeça do início (as primeiras palavras outra vez, mais à frente), corta-se aí.
+  const words = [...out.matchAll(/\S+/g)].map((m) => ({ at: m.index ?? 0, w: m[0].toLowerCase().replace(/[^\p{L}\p{N}]/gu, '') })).filter((x) => x.w);
+  const N = 10;
+  if (words.length > N * 4) {
+    const head = words.slice(0, N).map((x) => x.w).join(' ');
+    for (let i = Math.floor(words.length * 0.25); i <= words.length - N; i++) {
+      if (words.slice(i, i + N).map((x) => x.w).join(' ') === head) { out = out.slice(0, words[i].at); break; }
+    }
+  }
+  return out.trim();
 }
 
 // gpt-oss pensa antes de responder e isso conta para o limite por minuto; um pensamento leve chega.

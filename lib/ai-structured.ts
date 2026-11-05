@@ -1,6 +1,7 @@
 // Portado de cvviews-ofcsite/lib/ai.js e lib/schema.js: pedidos com resposta em JSON validado,
 // a língua do CV e os números que o modelo não pode inventar.
 import { ApiError, complete, humanize, REASONING } from './ai';
+import { isLorem, LOREM_WORDS } from './lorem';
 
 /* ---------------- Esquemas ---------------- */
 // Os structured outputs pedem todas as propriedades obrigatórias e nenhuma a mais.
@@ -34,7 +35,10 @@ const STOPSETS = Object.fromEntries(Object.entries(STOPWORDS).map(([k, v]) => [k
 
 // Adivinha a língua de um texto pelas palavras curtas mais comuns. Devolve "" quando há pouco texto.
 export function languageOf(text: string) {
-  const words = String(text || '').toLowerCase().match(/\p{L}+/gu) || [];
+  // O texto de exemplo dos modelos (lorem ipsum) não é língua nenhuma: as frases dele não contam ("sed do", "ut", "et"
+  // pareciam português e francês), nem as palavras soltas dele.
+  const real = String(text || '').split(/\r?\n|(?<=[.!?])\s+/).filter((l) => !isLorem(l)).join(' ');
+  const words = (real.toLowerCase().match(/\p{L}+/gu) || []).filter((w) => !LOREM_WORDS.has(w));
   const counts: Record<string, number> = Object.fromEntries(Object.keys(STOPSETS).map((k) => [k, 0]));
   for (const w of words) for (const k in STOPSETS) if (STOPSETS[k].has(w)) counts[k]++;
   // As letras portuguesas desempatam com o espanhol.

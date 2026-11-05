@@ -191,7 +191,7 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
     fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'full', cvText, name: cvName, target, review: { weaknesses: review.weaknesses, rewrites: review.rewrites, ats: review.ats, next_steps: review.next_steps } }),
+      body: JSON.stringify({ mode: 'full', cvText, name: cvName, target, review: { profile: review.profile, weaknesses: review.weaknesses, rewrites: review.rewrites, ats: review.ats, next_steps: review.next_steps } }),
     })
       .then(async (res) => { const data = await res.json(); if (!res.ok || !data.full) throw new Error(data.error || 'Não foi possível escrever o CV corrigido agora.'); onFull(data.full); })
       .catch((err) => setFullError(err.message));

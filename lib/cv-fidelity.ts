@@ -1,6 +1,7 @@
 // Fiel ao CV original: depois de a IA reescrever o CV, nada de resultados inventados e nenhuma frase perdida.
 // Verificado aqui, com regras simples, sem depender de a IA cumprir as instruções.
 import type { FullCv, Review } from './review';
+import { isLorem } from './lorem';
 
 const wordsOf = (s: string) => new Set(String(s).toLowerCase().match(/[\p{L}\p{N}]+/gu) || []);
 // Quanto duas frases se parecem: a parte das palavras da mais curta que também estão na outra.
@@ -12,9 +13,6 @@ export function alike(a: string, b: string) {
 }
 
 const PLACEHOLDER = /\[[A-Z](?:\s?%)?\]/;
-// Texto de exemplo dos modelos de CV ("lorem ipsum…"), mesmo mal lido de uma fotografia: nunca é conteúdo.
-const LOREM_WORDS = new Set('lorem ipsum dolor amet consectetur adipiscing elit eiusmod tempor incididunt labore dolore magna aliqua quis suspendisse ultrices gravida risus commodo commode viverra maecenas accumsan lacus facilisis nostrud exercitation ullamco laboris nisi aliquip commodo consequat duis aute irure reprehenderit voluptate velit esse cillum fugiat nulla pariatur excepteur sint occaecat cupidatat proident sunt culpa officia deserunt mollit anim'.split(' '));
-const isLorem = (s: string) => (String(s).toLowerCase().match(/\p{L}+/gu) || []).filter((w) => LOREM_WORDS.has(w)).length >= 2;
 const clean = (s: string) => s.replace(/^[\s\-•*·▪●◦–—>]+/, '').replace(/\s+/g, ' ').trim();
 
 type Rewrite = Review['rewrites'][number];

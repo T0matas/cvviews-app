@@ -29,6 +29,30 @@ const rank = (title: string) => ORDER.find(([re]) => re.test(key(title)))?.[1] ?
 const isSkills = (title: string) => rank(title) === 5 || rank(title) === 6 || rank(title) === 8;
 const isContactSection = (title: string) => /contact|contato|kontakt|dados pessoais|personal (details|info)|informa[cç][oõ]es pessoais/.test(key(title));
 
+// Um título com uma gralha da leitura da fotografia ("Languagess", "Experiance") volta a ser o título que é,
+// com as mesmas maiúsculas. Só títulos conhecidos e só a uma ou duas letras de distância.
+const KNOWN_HEADINGS = ['Profile', 'Perfil', 'Summary', 'Resumo', 'About Me', 'Sobre Mim', 'Objective', 'Objetivo', 'Experience', 'Work Experience',
+  'Professional Experience', 'Experiência', 'Experiência Profissional', 'Education', 'Educação', 'Formação', 'Formação Académica', 'Skills', 'Key Skills',
+  'Competências', 'Expertise', 'Languages', 'Idiomas', 'Línguas', 'Certifications', 'Certificações', 'Courses', 'Cursos', 'Projects', 'Projetos',
+  'Interests', 'Interesses', 'Hobbies', 'References', 'Referências', 'Tools', 'Ferramentas', 'Contact', 'Contacto', 'Contactos'];
+function editDistance(a: string, b: string) {
+  if (Math.abs(a.length - b.length) > 2) return 3;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+function fixHeading(title: string) {
+  const k = key(title);
+  if (k.length < 6 || KNOWN_HEADINGS.some((h) => key(h) === k)) return title;
+  const near = KNOWN_HEADINGS.find((h) => editDistance(key(h), k) <= (k.length >= 9 ? 2 : 1));
+  if (!near) return title;
+  return title === title.toUpperCase() ? near.toUpperCase() : near;
+}
+
 // Nomes em maiúsculas passam a "Nome Apelido"; o resto fica como está.
 const titleCase = (s: string) => (s && s === s.toUpperCase() && /\p{L}{2}/u.test(s) ? s.toLowerCase().replace(/(^|[\s'-])\p{L}/gu, (m) => m.toUpperCase()) : s);
 
@@ -42,18 +66,22 @@ const tidyDates = (s: string) => clean(s)
 export function tidyCv(input: FullCv): FullCv {
   const contact: string[] = [];
   const seenContact = new Set<string>();
+  // Só o contacto: os rótulos ("Email:", "Phone:") saem, sozinhos ou antes do valor.
+  const LABEL = /^(e-?mail|phone|tel(efone|ephone)?|telem[oó]vel|mobile|m[oó]vel|address|morada|endere[cç]o|website|site|web|linkedin|github|contact[oa]?s?)\s*:?$/i;
   const addContact = (c: string) => {
-    for (const part of clean(c).split(/\s*[|·•]\s*/)) {
+    for (const raw of clean(c).split(/\s*[|·•]\s*/)) {
+      const part = raw.replace(/^(e-?mail|phone|tel(efone|ephone)?|telem[oó]vel|mobile|address|morada|endere[cç]o|website|site|web)\s*:\s*/i, '').trim();
       const k = key(part);
-      if (part && k && !seenContact.has(k)) { seenContact.add(k); contact.push(part); }
+      if (!part || !k || /:$/.test(part) || LABEL.test(part) || seenContact.has(k)) continue;
+      seenContact.add(k);
+      contact.push(part);
     }
   };
   (input.contact || []).forEach(addContact);
 
-  const seenLines = new Set<string>();
   const sections: Section[] = [];
   for (const raw of input.sections || []) {
-    const title = clean(raw.title);
+    const title = fixHeading(clean(raw.title));
     if (!title) continue;
     // Contactos são do cabeçalho, nunca uma secção.
     if (isContactSection(title)) {
@@ -62,6 +90,8 @@ export function tidyCv(input: FullCv): FullCv {
     }
     const entries: Entry[] = [];
     for (const e of raw.entries || []) {
+      // Uma linha repetida dentro da mesma entrada sai; entradas iguais (modelos que repetem "Company Name") ficam.
+      const seenLines = new Set<string>();
       const lines: string[] = [];
       for (const l of e.lines || []) {
         const line = clean(l);
@@ -99,6 +129,6 @@ export function tidyCv(input: FullCv): FullCv {
     ];
   }
 
-  sections.sort((a, b) => rank(a.title) - rank(b.title));
+  // As secções ficam pela ordem do CV original: a estrutura é a dele.
   return { name: titleCase(clean(input.name)), headline: clean(input.headline), contact, sections };
 }
