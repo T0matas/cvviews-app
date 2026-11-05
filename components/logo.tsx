@@ -1,22 +1,9 @@
-import { useId } from 'react';
-
-// A marca do CVviews: uma folha com um visto. Desenhada em traço, segue a cor do texto (claro ou escuro).
+// A marca do Leo dentro da app: uma linha manuscrita, na cor do texto (claro ou escuro).
+// O ícone da app (folha com visto) fica só em public/icon.svg e app/icon.svg.
 export default function Logo({ className = 'logo' }: { className?: string }) {
-  const id = useId();
   return (
-    <svg className={className} viewBox="316 276 420 420" aria-hidden="true">
-      <defs>
-        <mask id={id} maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
-          <rect width="1024" height="1024" fill="#fff" />
-          <path d="M560 575l45 45 100-105" fill="none" stroke="#000" strokeWidth="92" strokeLinecap="round" strokeLinejoin="round" />
-        </mask>
-      </defs>
-      <g mask={`url(#${id})`} fill="none" stroke="currentColor" strokeWidth="40" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M548 322H390a45 45 0 0 0-45 45v236a45 45 0 0 0 45 45h235a45 45 0 0 0 45-45V444z" />
-        <path d="M548 322v77a45 45 0 0 0 45 45h77z" fill="currentColor" />
-      </g>
-      <path d="M418 438h89M418 498h89" fill="none" stroke="currentColor" strokeWidth="36" strokeLinecap="round" />
-      <path d="M560 575l45 45 100-105" fill="none" stroke="currentColor" strokeWidth="44" strokeLinecap="round" strokeLinejoin="round" />
+    <svg className={className} viewBox="0 0 40 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M2 17c3-1 4-9 7-9s1 9 4 9 3-11 7-11-1 11 3 11 3-7 6-7 2 6 5 6 3-3 4-4" />
     </svg>
   );
 }
