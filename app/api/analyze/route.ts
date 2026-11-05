@@ -3,6 +3,7 @@
 // com `mode: "full"`, devolve o CV todo reescrito com essa revisão aplicada.
 import { cvBlock, friendlyError, hasKey, HUMAN_STYLE } from '@/lib/ai';
 import { blankUnknownNumbers, CV_STYLE, int, intoLanguage, LANGUAGE_NAMES, languageOf, list, obj, oneOf, str, structured } from '@/lib/ai-structured';
+import { alike, keepFaithful } from '@/lib/cv-fidelity';
 import { tidyCv } from '@/lib/cv-tidy';
 import type { FullCv, Review } from '@/lib/review';
 
@@ -66,6 +67,7 @@ const SCHEMA = obj({
 const SYSTEM = `You are CVviews, an experienced recruiter and career coach who has screened thousands of CVs.
 Review the candidate's CV honestly and kindly: celebrate what genuinely works and be specific about what doesn't.
 Every point must be grounded in the actual CV - quote it where you can. Never invent experience the candidate does not have.
+A rewritten line ("improved", "short") rephrases only what that line already says. It may invite one figure the candidate must fill in, as a placeholder like "by [X]%", but never states an outcome in words that the CV doesn't give (no "earned positive feedback", "boosted sales", "praised by clients").
 If a target role or job description is given, judge relevance against it; otherwise infer the most likely target from the CV.
 If the document is not a CV, set is_cv to false, explain briefly in not_cv_reason, and keep every other field minimal (scores 0, empty lists, empty strings).
 Write every field in European Portuguese (pt-PT), except quotes from the CV and rewritten lines, which stay in the CV's own language: if the CV is in English, "original", "improved" and "short" are in English.
@@ -125,13 +127,12 @@ export async function POST(request: Request) {
         maxTokens: 16000,
       });
       // Cada linha que a revisão reescreveu entra como a revisão a escreveu, mesmo que o modelo tenha deixado a antiga.
-      const wordsOf = (s: string) => new Set(String(s).toLowerCase().match(/[\p{L}\p{N}]+/gu) || []);
-      const alike = (a: string, b: string) => { const x = wordsOf(a), y = wordsOf(b); let both = 0; for (const w of x) if (y.has(w)) both++; return both / Math.max(1, Math.min(x.size, y.size)); };
       const rewrites = (given?.rewrites || []).filter((w) => w.original && w.improved);
       const fix = (line: string) => blankUnknownNumbers(rewrites.find((w) => alike(line, w.original) >= 0.75)?.improved ?? line, cvText, target);
       full.sections = (full.sections || []).map((s) => ({ ...s, entries: (s.entries || []).map((e) => ({ ...e, lines: (e.lines || []).map(fix) })) }));
-      // A estrutura fica sempre arrumada: contactos no cabeçalho, secções pela ordem certa, nada repetido ou solto.
-      return Response.json({ full: tidyCv(full) });
+      // Fiel ao original (sem resultados inventados, sem frases perdidas) e com a estrutura sempre arrumada:
+      // contactos no cabeçalho, secções pela ordem certa, nada repetido ou solto.
+      return Response.json({ full: tidyCv(keepFaithful(full, cvText, rewrites)) });
     }
 
     const ask = target.trim() ? `Vaga ou anúncio:\n<target>\n${target.trim().slice(0, 6000)}\n</target>\n\nRevê o meu CV para esta vaga.` : 'Revê o meu CV.';

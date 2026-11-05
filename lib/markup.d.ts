@@ -13,7 +13,8 @@ export type CvLayout = {
   decor: string | null;
   band: string | null;
   topBar: boolean;
-  photo: { src: string; round: boolean; x: number; y: number } | null;
+  photo: { src: string; round: boolean; bleed: boolean; aspect: number; x: number; y: number } | null;
+  headingUpper: boolean;
   nameUpper: boolean;
   serif: boolean;
   font: string | null;
@@ -28,7 +29,8 @@ export type CvStyle = {
   sections: ('side' | 'main')[];
   header: 'side' | 'main';
   contact: 'side' | 'header';
-  photo: { src: string; round: boolean; column: 'side' | 'main' } | null;
+  photo: { src: string; round: boolean; bleed: boolean; aspect: number; column: 'side' | 'main' } | null;
+  headingUpper: boolean;
   accent: string | null;
   heading: string | null;
   decor: string | null;

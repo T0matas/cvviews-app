@@ -63,14 +63,16 @@ export default function CvStyled({ f, style: st }: { f: FullCv; style: CvStyle }
   const vars = {
     '--cvx-accent': st.accent || '#1a1a1a',
     '--cvx-heading': st.heading || st.accent || '#1a1a1a',
-    '--cvx-decor': st.decor || st.accent || '#1a1a1a',
-    '--cvx-band': st.band || `color-mix(in srgb, ${st.decor || st.accent || '#1a1a1a'} 10%, #fff)`,
+    '--cvx-decor': st.decor || st.heading || '#1a1a1a',
+    '--cvx-band': st.band || `color-mix(in srgb, ${st.decor || st.heading || '#1a1a1a'} 10%, #fff)`,
     '--cvx-side-bg': st.sideBg || 'transparent',
     '--cvx-side': `${Math.round(Math.min(0.44, Math.max(0.3, st.sideRatio || 0.36)) * 100)}%`,
     fontFamily: st.font ? `${st.font}, ${st.serif ? 'Georgia, serif' : 'Arial, sans-serif'}` : st.serif ? 'Georgia, "Times New Roman", serif' : 'Calibri, "Segoe UI", Arial, sans-serif',
   } as CSSProperties;
 
-  const photo = st.photo && <img className={`cvx-photo${st.photo.round ? ' round' : ''}`} src={st.photo.src} alt="" />;
+  const photo = st.photo && (st.photo.bleed
+    ? <img className="cvx-photo bleed" style={{ aspectRatio: String(st.photo.aspect || 1) }} src={st.photo.src} alt="" />
+    : <img className={`cvx-photo${st.photo.round ? ' round' : ''}`} src={st.photo.src} alt="" />);
   const contactList = (
     <ul className="cvx-contact">{f.contact.map((c, i) => { const Icon = contactIcon(c); return <li key={i}><Icon size={14} />{c}</li>; })}</ul>
   );
@@ -94,7 +96,7 @@ export default function CvStyled({ f, style: st }: { f: FullCv; style: CvStyle }
   };
 
   return (
-    <article className={`cvx${st.sideDark ? ' side-dark' : ''}`} style={vars}>
+    <article className={`cvx${st.sideDark ? ' side-dark' : ''}${st.headingUpper ? '' : ' heads-title'}`} style={vars}>
       {st.topBar && <i className="cvx-bar" aria-hidden="true" />}
       {st.two ? (
         <div className={`cvx-grid side-${st.side}`}>
