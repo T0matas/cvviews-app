@@ -1,5 +1,5 @@
 // Service worker mínimo: guarda a "casca" do app para abrir offline. As conversas com a IA precisam de rede.
-const CACHE = 'cvviews-v1';
+const CACHE = 'cvviews-v2';
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['/', '/icon.svg'])));
   self.skipWaiting();

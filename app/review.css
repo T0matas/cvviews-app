@@ -11,22 +11,6 @@
 .prose.is-revealing > * { animation: block-in .5s var(--ease) both; }
 @keyframes block-in { from { opacity: 0; transform: translateY(6px); filter: blur(2px); } }
 
-/* ---------------- Barra lateral recolhida (PC) ---------------- */
-.rail { display: none; }
-.rail-foot { margin-top: auto; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.rail-avatar { padding: 4px; border-radius: 50%; }
-.rail-avatar:hover { background: var(--bg-3); }
-@media (min-width: 821px) {
-  .app.is-collapsed { grid-template-columns: 60px 1fr; }
-  .app.is-collapsed .sidebar { visibility: visible; padding: 10px 0 calc(12px + env(safe-area-inset-bottom)); align-items: center; }
-  .app.is-collapsed .sidebar > :not(.rail, .sidebar-footer) { display: none; }
-  .app.is-collapsed .rail { height: 100%; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-  /* O rodapé só fica para o menu da conta, que abre a partir do avatar da faixa. */
-  .app.is-collapsed .sidebar-footer { position: absolute; bottom: 0; left: 0; width: 0; height: 0; padding: 0; border: 0; }
-  .app.is-collapsed .sidebar-footer > :not(.menu) { display: none; }
-  .settings-menu.from-rail { position: fixed; left: 12px; right: auto; bottom: 64px; width: 240px; }
-}
-
 /* ---------------- Ecrã inicial ---------------- */
 .welcome .composer-wrap { width: 100%; margin: 0 0 48px; padding: 0; animation: rise .7s .05s var(--ease) both; }
 .welcome .hello { margin-bottom: 28px; }
@@ -195,70 +179,88 @@ ul.notes { list-style: none; padding-left: 0; }
 .cvdoc li::marker { color: #777; }
 @media (max-width: 820px) { .cvdoc { padding: 28px 22px 30px; } .cvdoc-head h2 { font-size: 24px; } }
 
-/* ---------------- Ecrã inicial: o modo, a saudação e quatro ideias ---------------- */
-/* O gradiente cobre também a barra do topo, para não ficar uma faixa mais escura em cima. */
-.main:has(.welcome) { background: radial-gradient(120% 60% at 50% 0%, var(--bg-2), var(--bg) 75%); }
-.welcome { align-items: stretch; }
-.mode-switch { align-self: center; display: inline-flex; padding: 4px; margin-bottom: 30px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--bg); animation: rise .7s var(--ease) both; }
-.mode-switch button { height: 36px; padding: 0 18px; border-radius: 999px; color: var(--ink-2); font-size: 14.5px; font-weight: 500; transition: background .3s var(--ease), color .3s var(--ease); }
+/* ---------------- Ecrã inicial: o modo, a saudação, a caixa e quatro ideias ---------------- */
+/* Minimalista: fundo liso, títulos em Host Grotesk, cartões com linha fina. */
+.welcome { width: min(100%, 1040px); align-items: stretch; }
+.mode-switch { align-self: center; display: inline-flex; padding: 4px; margin-bottom: 64px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--bg); animation: rise .7s var(--ease) both; }
+.mode-switch button { height: 46px; padding: 0 22px; border-radius: 999px; color: var(--ink-2); font-size: 16.5px; font-weight: 500; transition: background .3s var(--ease), color .3s var(--ease); }
 .mode-switch button.is-on { color: var(--btn-ink); background: var(--btn); }
 .mode-switch button:not(.is-on):hover { color: var(--ink); }
-.welcome .hello { flex-direction: column; gap: 12px; margin-bottom: 36px; text-align: center; }
-.hello-name { display: flex; align-items: center; gap: 10px; margin: 0; color: var(--ink-2); font-size: 16px; }
-.hello-name .leo-mark { width: 32px; height: 19px; color: var(--ink); }
-.hello h1 { max-width: 14ch; font-size: clamp(34px, 3.6vw, 50px); line-height: 1.12; text-wrap: balance; }
-.ideas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-.idea { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 16px 16px 18px; border: 1px solid var(--line); border-radius: 22px; background: var(--bg); box-shadow: 0 1px 2px rgb(0 0 0 / .03); text-align: left; animation: rise .7s var(--ease) both; transition: border-color .15s, transform .25s var(--ease); }
-.idea:hover { border-color: var(--line-2); transform: translateY(-2px); }
+.welcome .hello { flex-direction: column; gap: 18px; margin-bottom: 40px; text-align: center; }
+.hello-name { display: flex; align-items: center; gap: 12px; margin: 0; color: var(--ink-2); font-size: 20px; }
+.hello-logo { width: 30px; height: 30px; flex: 0 0 auto; color: var(--ink); }
+.hello h1 { max-width: none; font-family: var(--sans); font-size: clamp(38px, 3.6vw, 54px); font-weight: 400; line-height: 1.1; letter-spacing: -1.6px; text-wrap: balance; }
+
+/* A caixa de mensagem */
+.composer { border: 1px solid var(--line-2); border-radius: 30px; background: var(--bg-2); }
+.composer:focus-within { border-color: var(--ink-3); }
+.composer textarea { min-height: 64px; padding: 22px 28px 4px; font-size: 17px; }
+.composer-row { padding: 6px 14px 14px 16px; }
+.tool-btn { width: 44px; height: 44px; color: var(--ink); }
+.mic-btn { color: var(--ink-2); }
+.send-btn { width: 44px; height: 44px; }
+.send-btn.is-idle { opacity: 1; transform: none; color: var(--bg); background: var(--ink-3); }
+.welcome .composer-meta { display: none; }
+
+/* As ideias: cartões no PC, lista no telemóvel */
+.ideas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+.idea { min-width: 0; min-height: 190px; display: flex; flex-direction: column; align-items: flex-start; padding: 28px 24px 24px; border: 1px solid var(--line-2); border-radius: 26px; background: var(--card); text-align: left; animation: rise .7s var(--ease) both; transition: border-color .15s, background .15s, transform .25s var(--ease); }
+.idea:hover { border-color: var(--ink-3); transform: translateY(-2px); }
 .idea:active { transform: scale(.97); }
-.idea-icon { width: 40px; height: 40px; display: grid; place-items: center; margin-bottom: 14px; border-radius: 50%; color: var(--ink); background: var(--bg-2); }
-.idea strong { font-size: 15.5px; font-weight: 600; line-height: 1.25; }
-.idea small { color: var(--ink-3); font-size: 13.5px; line-height: 1.4; }
-.welcome .recent { margin-top: 30px; }
-.recent-list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
-.recent-row { min-width: 0; display: flex; align-items: center; gap: 12px; padding: 12px 2px; border-bottom: 1px solid var(--line); text-align: left; }
-.recent-row .recent-title { flex: 1; padding: 0; font-size: 15px; }
-.recent-row .recent-meta { flex: 0 0 auto; padding: 0; font-size: 13px; }
-.recent-row:hover .recent-title { text-decoration: underline; text-underline-offset: 3px; }
+.idea-icon { display: grid; place-items: center; margin-bottom: 24px; color: var(--ink); }
+.idea-text { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.idea strong { font-size: 17px; font-weight: 500; line-height: 1.3; }
+.idea small { color: var(--ink-3); font-size: 15px; line-height: 1.45; }
+.idea-chevron { display: none; }
+
+/* A barra do topo: no PC só aparece numa conversa; o título fica centrado. */
+.topbar::before { content: ""; width: 36px; flex: 0 0 auto; }
+
+@media (min-width: 821px) {
+  .welcome { padding-top: 12px; padding-bottom: 28px; }
+  .welcome .composer-wrap { width: 100%; margin-bottom: 52px; padding: 0; }
+}
+
+@media (max-width: 1100px) and (min-width: 821px) {
+  .ideas { grid-template-columns: repeat(2, 1fr); }
+  .idea { min-height: 0; }
+  .mode-switch { margin-bottom: 40px; }
+}
 
 @media (max-width: 820px) {
-  .welcome { padding-top: 10px; }
-  .mode-switch { margin-bottom: 22px; }
-  .welcome .hello { gap: 8px; margin-bottom: 24px; }
-  .hello h1 { font-size: 31px; }
-  .ideas { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .idea { padding: 14px 14px 16px; border-radius: 20px; }
-  .idea-icon { width: 38px; height: 38px; margin-bottom: 10px; }
-  .idea strong { font-size: 14.5px; }
-  .idea small { font-size: 12.5px; }
-  .welcome .recent { margin-top: 22px; }
+  .topbar::before { display: none; }
+  .topbar { height: calc(68px + env(safe-area-inset-top)); padding-left: 12px; padding-right: 14px; }
+  .topbar .menu-btn { width: 46px; height: 46px; color: var(--ink); }
+  .topbar .new-btn { width: 50px; height: 50px; border: 1px solid var(--line-2); border-radius: 50%; color: var(--ink); }
 
-  /* Botões redondos no topo. */
-  .topbar .icon-btn { width: 44px; height: 44px; border: 1px solid var(--line-2); border-radius: 50%; color: var(--ink); }
+  /* Ordem do telemóvel: marca, título, modo, ideias. */
+  .welcome { justify-content: flex-start; padding: 8px 20px 16px; }
+  .welcome .hello { order: 0; gap: 22px; margin-bottom: 30px; }
+  .hello-name span { display: none; }
+  .hello-logo { width: 64px; height: 64px; }
+  .hello h1 { max-width: 11ch; margin: 0 auto; font-size: 38px; letter-spacing: -1.2px; }
+  .mode-switch { order: 1; width: min(100%, 300px); margin-bottom: 32px; background: transparent; }
+  .mode-switch button { flex: 1; height: 44px; padding: 0 12px; font-size: 15px; }
+  .mode-switch button.is-on { color: var(--ink); background: var(--bg-3); }
+  .ideas { order: 2; display: flex; flex-direction: column; gap: 14px; }
+  .idea { min-height: 0; flex-direction: row; align-items: center; gap: 16px; padding: 16px 16px 16px 18px; border-color: var(--line); border-radius: 24px; background: var(--bg-2); }
+  .idea:hover { transform: none; }
+  .idea-icon { width: 52px; height: 52px; flex: 0 0 auto; margin: 0; border-radius: 15px; background: var(--bg-3); }
+  .idea-text { flex: 1; gap: 2px; }
+  .idea strong { font-size: 17px; }
+  .idea small { overflow: hidden; font-size: 14px; white-space: nowrap; text-overflow: ellipsis; }
+  .idea-chevron { display: block; flex: 0 0 auto; color: var(--ink-3); }
 
-  /* O "+" num círculo à parte e a mensagem numa pílula. */
-  .composer { position: relative; flex-direction: row; flex-wrap: wrap; align-items: flex-end; margin-left: 60px; border-radius: 28px; background: var(--bg); }
-  .composer .pending { flex: 0 0 100%; }
-  .composer textarea { flex: 1; min-width: 0; min-height: 52px; padding: 14px 4px 12px 20px; font-size: 16px; }
+  /* A mensagem numa pílula, com o "+" dentro. */
+  .composer { position: relative; flex-direction: row; flex-wrap: wrap; align-items: flex-end; border-radius: 30px; }
+  .composer .pending { order: -2; flex: 0 0 100%; }
+  .composer textarea { order: 0; flex: 1; min-width: 0; min-height: 58px; padding: 17px 4px 14px 6px; font-size: 16px; }
   .composer-row { display: contents; }
-  .composer-row .plus { position: absolute; bottom: 0; left: -60px; }
-  .composer-row .plus > .tool-btn { width: 52px; height: 52px; border: 1px solid var(--line-2); color: var(--ink); background: var(--bg); }
-  .composer-row .mic-btn { margin-bottom: 7px; }
-  .composer-row .send-btn { margin: 0 8px 8px 2px; }
-  .composer:has(.recording) { margin-left: 0; }
+  .composer-row .plus { order: -1; margin: 0 0 7px 8px; }
+  .composer-row .mic-btn { order: 1; margin: 0 0 7px; }
+  .composer-row .send-btn { order: 2; margin: 0 8px 8px 2px; }
   .composer:has(.recording) textarea { display: none; }
   .composer-row.recording { display: flex; flex: 1; padding: 7px 8px; }
   .main:has(.welcome) .composer-meta { display: none; }
   .main:has(.welcome) .composer-wrap { padding-bottom: calc(14px + env(safe-area-inset-bottom)); }
-}
-
-@media (min-width: 821px) {
-  /* No PC cabe tudo no ecrã: título numa linha, menos folga em baixo. */
-  .welcome { padding-top: 12px; padding-bottom: 16px; }
-  .mode-switch { margin-bottom: 22px; }
-  .welcome .hello { margin-bottom: 30px; }
-  /* O modo já está no seletor de cima. */
-  .welcome .mode-picker { visibility: hidden; }
-  .welcome .hello h1 { max-width: none; }
-  .welcome .composer-wrap { margin-bottom: 28px; }
 }

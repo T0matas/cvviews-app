@@ -3,12 +3,13 @@
 import { type ChangeEvent, type DragEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import {
-  ArrowDown, ArrowUp, BriefcaseBusiness, Check, ChevronDown, Copy, FileText, Globe, Image as ImageIcon, ListChecks, Loader2, LogIn, LogOut, MessageSquareText,
-  Mic, MoreHorizontal, PanelLeft, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings2,
+  ArrowDown, ArrowUp, BriefcaseBusiness, Check, ChevronDown, ChevronRight, Copy, FileText, Globe, Image as ImageIcon, ListChecks, Loader2, LogIn, LogOut, MessageSquareText,
+  Mic, MoreHorizontal, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings as Gear, Settings2,
   Square, SquarePen, Trash2, UserRound, UsersRound, X,
 } from 'lucide-react';
 import AuthDialog from './auth-dialog';
-import LeoWriting, { LeoMark } from './leo-writing';
+import LeoWriting from './leo-writing';
+import Logo from './logo';
 import SmoothProse from './smooth-prose';
 import SettingsDialog, { DEFAULT_SETTINGS, type Settings } from './settings-dialog';
 import { auth } from '@/lib/firebase';
@@ -34,7 +35,7 @@ const SUGGESTIONS: Record<Mode, { icon: typeof FileText; title: string; hint: st
     { icon: ListChecks, title: 'Grelha de avaliação', hint: 'Requisitos essenciais e desejáveis', prompt: 'Cria uma grelha de avaliação para uma vaga de Product Designer, separando requisitos essenciais e desejáveis.' },
     { icon: FileText, title: 'Resumir um CV', hint: 'Experiência e o que confirmar', prompt: 'Vou anexar um currículo. Resume a experiência, as competências e os pontos a confirmar na entrevista.' },
     { icon: MessageSquareText, title: 'Perguntas de entrevista', hint: 'Avaliar a liderança de equipa', prompt: 'Que perguntas comportamentais devo fazer para avaliar liderança de equipa?' },
-    { icon: UsersRound, title: 'Comparar candidaturas', hint: 'Critérios iguais para todos', prompt: 'Como posso comparar candidaturas de forma consistente e justa?' },
+    { icon: UsersRound, title: 'Comparar candidatos', hint: 'Critérios iguais para todos', prompt: 'Como posso comparar candidaturas de forma consistente e justa?' },
   ],
   candidato: [
     { icon: Pencil, title: 'Melhorar o meu CV', hint: 'Melhorias concretas ao currículo', prompt: 'Vou anexar o meu currículo. Que melhorias concretas sugeres?' },
@@ -71,15 +72,13 @@ function formatSize(bytes: number) {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-function timeAgo(time: number) {
-  const minutes = Math.round((Date.now() - time) / 60_000);
-  if (minutes < 1) return 'agora';
-  if (minutes < 60) return `há ${minutes} min`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `há ${hours} h`;
-  const days = Math.round(hours / 24);
-  if (days < 7) return days === 1 ? 'ontem' : `há ${days} dias`;
-  return new Date(time).toLocaleDateString('pt-PT', { day: 'numeric', month: 'short' });
+// Três traços, o último mais curto: abre a gaveta no telemóvel.
+function MenuIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+      <path d="M4 6.5h16M4 12h16M4 17.5h10" />
+    </svg>
+  );
 }
 
 export default function ChatApp() {
@@ -90,7 +89,8 @@ export default function ChatApp() {
   const [pending, setPending] = useState<Pending[]>([]);
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  // No PC, a faixa de ícones fica sempre; a lista de conversas abre ao lado dela.
+  const [panelOpen, setPanelOpenState] = useState(false);
   const [query, setQuery] = useState('');
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -111,7 +111,7 @@ export default function ChatApp() {
     query.addEventListener('change', update);
     return () => query.removeEventListener('change', update);
   }, []);
-  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [profileMenu, setProfileMenu] = useState<'rail' | 'panel' | null>(null);
   const [itemMenu, setItemMenu] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -139,7 +139,7 @@ export default function ChatApp() {
       const stored = { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') } as Settings;
       setSettings(stored);
       setNewChatMode(stored.defaultMode);
-      if (localStorage.getItem('cvviews-sidebar') === 'collapsed') setCollapsed(true);
+      if (localStorage.getItem('cvviews-panel') === 'open') setPanelOpenState(true);
     } catch { /* armazenamento indisponível */ }
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') navigator.serviceWorker.register('/sw.js').catch(() => {});
     return onAuthStateChanged(auth(), (next) => { setUser(next); setAuthReady(true); });
@@ -183,10 +183,10 @@ export default function ChatApp() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { setDrawerOpen(false); setModeMenuOpen(false); setPlusOpen(false); setProfileMenuOpen(false); setItemMenu(null); setDialog(null); }
+      if (event.key === 'Escape') { setDrawerOpen(false); setModeMenuOpen(false); setPlusOpen(false); setProfileMenu(null); setItemMenu(null); setDialog(null); }
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'o') { event.preventDefault(); newChat(); }
     };
-    const onClick = () => { setModeMenuOpen(false); setPlusOpen(false); setProfileMenuOpen(false); setItemMenu(null); };
+    const onClick = () => { setModeMenuOpen(false); setPlusOpen(false); setProfileMenu(null); setItemMenu(null); };
     window.addEventListener('keydown', onKey);
     window.addEventListener('click', onClick);
     return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('click', onClick); };
@@ -201,9 +201,19 @@ export default function ChatApp() {
   const updateConversation = (id: string, update: (c: Conversation) => Conversation) =>
     setConversations((list) => list.map((c) => (c.id === id ? update(c) : c)));
 
-  function expandSidebar() {
-    setCollapsed(false);
-    try { localStorage.removeItem('cvviews-sidebar'); } catch {}
+  function setPanelOpen(open: boolean) {
+    setPanelOpenState(open);
+    try { if (open) localStorage.setItem('cvviews-panel', 'open'); else localStorage.removeItem('cvviews-panel'); } catch {}
+  }
+
+  function closeSidebar() {
+    setDrawerOpen(false);
+    setPanelOpen(false);
+  }
+
+  function focusSearch() {
+    setPanelOpen(true);
+    setTimeout(() => document.querySelector<HTMLInputElement>('.search input')?.focus(), 60);
   }
 
   function newChat() {
@@ -414,7 +424,6 @@ export default function ChatApp() {
   const firstName = userName.split(/\s+/)[0];
   const initials = (userName || user?.email || '').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
   const canSend = (draft.trim().length > 0 || pending.length > 0) && !isStreaming && !pending.some((f) => f.reading);
-  const recent = useMemo(() => [...conversations].sort((a, b) => b.updatedAt - a.updatedAt).slice(0, 4), [conversations]);
 
   const sendRef = useRef(send);
   sendRef.current = send;
@@ -444,7 +453,7 @@ export default function ChatApp() {
   }
 
   async function logout() {
-    setProfileMenuOpen(false);
+    setProfileMenu(null);
     setDialog(null);
     await signOut(auth()).catch(() => setNotice('Não foi possível terminar a sessão.'));
   }
@@ -545,43 +554,46 @@ export default function ChatApp() {
   </div>
   );
 
+  const accountMenu = (where: 'rail' | 'panel') => profileMenu === where && (
+    <div className={`menu settings-menu from-${where}`} onClick={(e) => e.stopPropagation()}>
+      <button onClick={() => { setProfileMenu(null); setDialog('settings'); }}><Settings2 size={15} /> Configurações</button>
+      <button onClick={logout}><LogOut size={15} /> Terminar sessão</button>
+    </div>
+  );
+
   return (
-    <div className={`app${collapsed ? ' is-collapsed' : ''}${drawerOpen ? ' drawer-open' : ''}`}>
+    <div className={`app${panelOpen ? ' panel-open' : ''}${drawerOpen ? ' drawer-open' : ''}`}>
       <div className="scrim" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
 
-      <aside className="sidebar" aria-label="Conversas">
-        {/* Recolhida no PC: só os ícones, como no ChatGPT. */}
-        <nav className="rail" aria-label="Barra lateral recolhida">
-          <button className="icon-btn" onClick={expandSidebar} aria-label="Abrir barra lateral" title="Abrir barra lateral"><PanelLeft size={19} /></button>
-          <button className="icon-btn" onClick={newChat} aria-label="Nova conversa" title="Nova conversa"><SquarePen size={19} /></button>
-          <button className="icon-btn" onClick={() => { expandSidebar(); setTimeout(() => document.querySelector<HTMLInputElement>('.search input')?.focus(), 50); }} aria-label="Pesquisar conversas" title="Pesquisar conversas"><Search size={19} /></button>
-          <div className="rail-foot">
-            {authReady && !user ? (
-              <>
-                <button className="icon-btn" onClick={() => setDialog('settings')} aria-label="Configurações" title="Configurações"><Settings2 size={19} /></button>
-                <button className="icon-btn" onClick={() => setDialog('auth')} aria-label="Entrar" title="Entrar"><LogIn size={19} /></button>
-              </>
-            ) : (
-              <button className="rail-avatar" onClick={(e) => { e.stopPropagation(); setProfileMenuOpen((o) => !o); }} aria-label="A tua conta" title={userName || user?.email || 'A tua conta'}>{avatar}</button>
-            )}
-          </div>
-        </nav>
+      {/* PC: a faixa de ícones, sempre à vista. */}
+      <nav className="rail" aria-label="Navegação">
+        <button className="rail-logo" onClick={newChat} aria-label="CVviews, nova conversa" title="Nova conversa"><Logo /></button>
+        <button className="rail-btn is-on" onClick={() => setPanelOpen(!panelOpen)} aria-label="Conversas" aria-expanded={panelOpen} title="Conversas"><MessageSquareText size={21} strokeWidth={1.7} /></button>
+        <button className="rail-btn" onClick={focusSearch} aria-label="Pesquisar conversas" title="Pesquisar conversas"><Search size={21} strokeWidth={1.7} /></button>
+        <div className="rail-foot">
+          {authReady && !user && <button className="rail-btn" onClick={() => setDialog('auth')} aria-label="Entrar" title="Entrar"><LogIn size={21} strokeWidth={1.7} /></button>}
+          <button className="rail-btn" onClick={() => setDialog('settings')} aria-label="Configurações" title="Configurações"><Gear size={21} strokeWidth={1.7} /></button>
+          {user && <button className="rail-avatar" onClick={(e) => { e.stopPropagation(); setProfileMenu(profileMenu === 'rail' ? null : 'rail'); }} aria-label="A tua conta" title={userName || user.email || 'A tua conta'}>{avatar}</button>}
+          {accountMenu('rail')}
+        </div>
+      </nav>
 
+      {/* A lista de conversas: ao lado da faixa no PC, gaveta no telemóvel. */}
+      <aside className="sidebar" aria-label="Conversas">
         <div className="sidebar-top">
-          <button className="brand" onClick={newChat} aria-label="CVviews, nova conversa">
-            <span className="brand-word">CVviews</span>
-          </button>
-          <button className="icon-btn desktop-only" onClick={() => { setCollapsed(true); try { localStorage.setItem('cvviews-sidebar', 'collapsed'); } catch {} }} aria-label="Fechar barra lateral" title="Fechar barra lateral"><PanelLeft size={18} /></button>
-          <button className="icon-btn mobile-only" onClick={() => setDrawerOpen(false)} aria-label="Fechar menu"><X size={19} /></button>
+          <span className="brand-word">CVviews</span>
+          <button className="close-btn" onClick={closeSidebar} aria-label="Fechar" title="Fechar"><X size={19} /></button>
         </div>
 
-        <button className="new-chat" onClick={newChat}><SquarePen size={17} /> Nova conversa <kbd className="desktop-only">Ctrl ⇧ O</kbd></button>
+        <button className="side-row new-chat is-on" onClick={newChat}><SquarePen size={19} /> Nova conversa <kbd className="desktop-only">Ctrl ⇧ O</kbd></button>
 
-        <label className="search">
-          <Search size={15} />
+        <label className="side-row search">
+          <Search size={19} />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Pesquisar conversas" aria-label="Pesquisar conversas" />
           {query && <button onClick={() => setQuery('')} aria-label="Limpar pesquisa"><X size={14} /></button>}
         </label>
+
+        <button className="side-row phone-row" onClick={() => setDialog('settings')}><Gear size={19} /> Configurações</button>
 
         <nav className="history">
           {hydrated && !conversations.length && <p className="history-empty">As tuas conversas aparecem aqui.</p>}
@@ -600,7 +612,7 @@ export default function ChatApp() {
                       {c.pinned && <Pin size={12} className="pin-icon" />}<span>{c.title}</span>
                     </button>
                   )}
-                  <button className="history-more" aria-label="Opções da conversa" onClick={(e) => { e.stopPropagation(); setItemMenu(itemMenu === c.id ? null : c.id); }}><MoreHorizontal size={16} /></button>
+                  <button className="history-more" aria-label="Opções da conversa" onClick={(e) => { e.stopPropagation(); setItemMenu(itemMenu === c.id ? null : c.id); }}><MoreHorizontal size={17} /></button>
                   {itemMenu === c.id && (
                     <div className="menu history-menu" onClick={(e) => e.stopPropagation()}>
                       <button onClick={() => { setRenaming({ id: c.id, title: c.title }); setItemMenu(null); }}><Pencil size={15} /> Mudar o nome</button>
@@ -616,32 +628,24 @@ export default function ChatApp() {
 
         <div className="sidebar-footer">
           {authReady && !user ? (
-            <div className="signed-out">
-              <button className="primary-btn signin" onClick={() => setDialog('auth')}><LogIn size={16} /> Entrar</button>
-              <button className="icon-btn" onClick={() => setDialog('settings')} aria-label="Configurações" title="Configurações"><Settings2 size={18} /></button>
-            </div>
+            <button className="signin-btn" onClick={() => setDialog('auth')}><LogIn size={19} /> Entrar</button>
           ) : (
-            <button className="profile" onClick={(e) => { e.stopPropagation(); setProfileMenuOpen((o) => !o); }} aria-expanded={profileMenuOpen}>
+            <button className="profile" onClick={(e) => { e.stopPropagation(); setProfileMenu(profileMenu === 'panel' ? null : 'panel'); }} aria-expanded={profileMenu === 'panel'}>
               {avatar}
               <span className="profile-text"><strong>{userName || user?.email || ' '}</strong><small>{user?.email && userName ? user.email : MODES[newChatMode].label}</small></span>
               <MoreHorizontal size={16} />
             </button>
           )}
-          {profileMenuOpen && (
-            <div className={`menu settings-menu${collapsed ? ' from-rail' : ''}`} onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => { setProfileMenuOpen(false); setDialog('settings'); }}><Settings2 size={15} /> Configurações</button>
-              <button onClick={logout}><LogOut size={15} /> Terminar sessão</button>
-            </div>
-          )}
+          {accountMenu('panel')}
         </div>
       </aside>
 
       <main className="main" onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }} onDrop={onDrop}>
         <header className="topbar">
-          <button className="icon-btn mobile-only" onClick={() => setDrawerOpen(true)} aria-label="Abrir menu" title="Abrir menu"><PanelLeft size={19} /></button>
+          <button className="icon-btn menu-btn mobile-only" onClick={() => setDrawerOpen(true)} aria-label="Abrir menu" title="Abrir menu"><MenuIcon /></button>
           <span className="topbar-title">{active?.title ?? ''}</span>
           {liveAI === false && <span className="demo-badge" title="Sem GROQ_API_KEY: respostas de demonstração">Demo</span>}
-          <button className="icon-btn mobile-only" onClick={newChat} aria-label="Nova conversa" title="Nova conversa"><SquarePen size={19} /></button>
+          <button className={`icon-btn new-btn${active ? '' : ' mobile-only'}`} onClick={newChat} aria-label="Nova conversa" title="Nova conversa"><SquarePen size={19} /></button>
         </header>
 
         <div className="thread" ref={scrollRef} onScroll={(e) => { const el = e.currentTarget; setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80); }}>
@@ -653,35 +657,19 @@ export default function ChatApp() {
                 ))}
               </div>
               <div className="hello">
-                <p className="hello-name"><LeoMark />Olá{firstName ? `, ${firstName}` : ''}!</p>
+                <p className="hello-name"><Logo className="hello-logo" /><span>Olá{firstName ? `, ${firstName}` : ''}!</span></p>
                 <h1>O que vamos fazer hoje?</h1>
               </div>
               {wide && composer}
               <div className="ideas">
                 {SUGGESTIONS[mode].map(({ icon: Icon, title, hint, prompt }, i) => (
                   <button key={title} className="idea" style={{ animationDelay: `${0.1 + i * 0.05}s` }} onClick={() => { if (prompt.startsWith('Vou anexar')) { setDraft(prompt); fileRef.current?.click(); } else send(prompt); }}>
-                    <span className="idea-icon"><Icon size={18} /></span>
-                    <strong>{title}</strong>
-                    <small>{hint}</small>
+                    <span className="idea-icon"><Icon size={22} strokeWidth={1.6} /></span>
+                    <span className="idea-text"><strong>{title}</strong><small>{hint}</small></span>
+                    <ChevronRight size={20} className="idea-chevron" />
                   </button>
                 ))}
               </div>
-              {recent.length > 0 && (
-                <section className="recent">
-                  <header>
-                    <span>Conversas recentes</span>
-                    <button onClick={() => { if (window.matchMedia('(max-width: 820px)').matches) setDrawerOpen(true); else { setCollapsed(false); document.querySelector<HTMLInputElement>('.search input')?.focus(); } }}>Ver todas</button>
-                  </header>
-                  <div className="recent-list">
-                    {recent.slice(0, wide ? 2 : 1).map((c) => (
-                      <button key={c.id} className="recent-row" onClick={() => openConversation(c.id)}>
-                        <span className="recent-title">{c.title}</span>
-                        <span className="recent-meta">{timeAgo(c.updatedAt)}</span>
-                      </button>
-                    ))}
-                  </div>
-                </section>
-              )}
             </div>
           ) : (
             <div className="messages" aria-live="polite">
