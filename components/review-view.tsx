@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Copy, Download, FileDown } from 'lucide-react';
+import { Check, Copy, Download, FileDown, RotateCcw } from 'lucide-react';
 import LeoWriting from './leo-writing';
 import { cvDocText, type FullCv, markedCv, type Review, SEVERITY } from '@/lib/review';
 import { tidyCv } from '@/lib/cv-tidy';
+import type { CvLayout, styleFor as styleForType } from '@/lib/markup.js';
+import CvStyled from './cv-styled';
 
 /** O ficheiro original, guardado só em memória, para desenhar as correções por cima dele. */
 export type CvSource = { pdf?: string; images?: string[] };
@@ -150,6 +152,8 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
   const [step, setStep] = useState('A preparar o teu CV');
   const [drawFailed, setDrawFailed] = useState(!visual);
   const started = useRef(false);
+  // O desenho do original (colunas, cores, foto), lido da primeira página: undefined enquanto se lê.
+  const [look, setLook] = useState<{ layout: CvLayout | null; styleFor: typeof styleForType } | null | undefined>(visual ? undefined : null);
 
   // As correções desenhadas por cima do próprio ficheiro (só enquanto o ficheiro está em memória).
   useEffect(() => {
@@ -157,13 +161,15 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
     started.current = true;
     (async () => {
       try {
-        const { drawCorrections } = await import('@/lib/markup.js');
+        const { drawCorrections, styleFor } = await import('@/lib/markup.js');
         const result = await drawCorrections({ review, images: source?.images, pdf: source?.pdf, onStep: setStep });
+        setLook(result.layout ? { layout: result.layout, styleFor } : null);
         if (!result.marks) throw new Error('nenhuma citação encontrada na página');
         setShots(result.pages.map((c) => c.toDataURL('image/jpeg', 0.9)));
       } catch (err) {
         console.warn('[cv marcado]', err);
         setDrawFailed(true);
+        setLook((l) => l ?? null);
       }
     })();
   }, [visual, review, source]);
@@ -172,11 +178,16 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
   // onde as linhas novas podiam ficar por cima de outras ou fora do sítio). Pede-se logo, em paralelo.
   const needFull = !full;
   const tidy = useMemo(() => (full ? tidyCv(full) : null), [full]);
+  // Com o ficheiro original, o CV corrigido fica no mesmo desenho; sem ele (texto ou Word), num modelo simples.
+  const style = useMemo(() => (tidy && look ? look.styleFor(tidy, look.layout, cvText) : null), [tidy, look, cvText]);
+  const ready = tidy && look !== undefined;
   const [fullError, setFullError] = useState('');
-  const asked = useRef(false);
+  const asked = useRef(0);
+  const [attempt, setAttempt] = useState(1);
   useEffect(() => {
-    if (!needFull || asked.current) return;
-    asked.current = true;
+    if (!needFull || asked.current >= attempt) return;
+    asked.current = attempt;
+    setFullError('');
     fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -184,7 +195,7 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
     })
       .then(async (res) => { const data = await res.json(); if (!res.ok || !data.full) throw new Error(data.error || 'Não foi possível escrever o CV corrigido agora.'); onFull(data.full); })
       .catch((err) => setFullError(err.message));
-  }, [needFull, cvText, cvName, target, review, onFull]);
+  }, [needFull, attempt, cvText, cvName, target, review, onFull]);
 
   const base = baseName(cvName);
   const savePdf = async (build: (m: typeof import('@/lib/pdf-export.js')) => Blob | Promise<Blob>, name: string) => {
@@ -210,17 +221,20 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
       )}
 
       <h4 className="rv-h">O teu CV, já corrigido</h4>
-      {tidy ? (
+      {ready ? (
         <>
-          <p className="rv-p">Tudo aplicado e arrumado: cada secção no sítio certo, pronto a enviar. Onde vires um <span className="cvdoc-blank">[X]</span>, põe o teu número.</p>
-          <article className="cvdoc"><CvDoc f={tidy} /></article>
+          <p className="rv-p">{style ? 'O mesmo desenho do teu CV, com tudo aplicado e cada secção no sítio certo.' : 'Tudo aplicado e arrumado: cada secção no sítio certo, pronto a enviar.'} Onde vires um <span className="cvdoc-blank">[X]</span>, põe o teu número.</p>
+          {style ? <CvStyled f={tidy} style={style} /> : <article className="cvdoc"><CvDoc f={tidy} /></article>}
           <p className="cvmark-act">
-            <button type="button" className="text-act" onClick={() => savePdf((m) => m.textPdf(tidy), `${tidy.name || base} - CV`)}><FileDown size={14} />Descarregar em PDF</button>
+            <button type="button" className="text-act" onClick={() => savePdf((m) => (style ? m.styledPdf(tidy, style) : m.textPdf(tidy)), `${tidy.name || base} - CV`)}><FileDown size={14} />Descarregar em PDF</button>
             <CopyButton text={cvDocText(tidy)} label="Copiar o texto" />
           </p>
         </>
       ) : fullError ? (
-        <p className="rv-p">{fullError}</p>
+        <>
+          <p className="rv-p">{fullError}</p>
+          <p className="cvmark-act"><button type="button" className="text-act" onClick={() => setAttempt((a) => a + 1)}><RotateCcw size={14} />Tentar outra vez</button></p>
+        </>
       ) : (
         <div className="cvshot-wait"><span className="cvshot-dot" aria-hidden="true" />A escrever o teu CV corrigido…</div>
       )}

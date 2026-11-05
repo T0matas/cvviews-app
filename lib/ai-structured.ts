@@ -71,12 +71,14 @@ const isBadJson = (error: unknown) => error instanceof ApiError && error.status 
 type StructuredRequest = { system: string; content: string; schema: object; maxTokens?: number };
 
 export async function structured<T>(request: StructuredRequest): Promise<T> {
-  try {
-    return await structuredOnce<T>(request);
-  } catch (error) {
-    if (!isBadJson(error)) throw error;
-    console.warn('[structured] JSON failed the schema check, trying once more');
-    return structuredOnce<T>(request);
+  // Up to three tries: a long answer (a whole CV) fails the check more often than a short one.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await structuredOnce<T>(request);
+    } catch (error) {
+      if (!isBadJson(error) || attempt >= 3) throw error;
+      console.warn(`[structured] JSON failed the schema check, try ${attempt + 1} of 3`);
+    }
   }
 }
 

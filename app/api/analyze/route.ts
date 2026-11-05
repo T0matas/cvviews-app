@@ -95,7 +95,8 @@ Never add anything the CV does not say: no new duties, achievements, frequencies
 A placeholder like [X] or [X %] is only for a figure missing from a result the CV already mentions; do not add new results around placeholders.
 Structure, always, even when the original layout was messy (two columns, a photo, text read from an image):
 - Name and headline go in "name" and "headline"; every email, phone, address, city and link goes in "contact" only, never in a section.
-- Sections in this order when they exist: profile/summary, experience, projects, education, certifications, skills, languages, other. One section per topic, never the same section twice.
+- Keep the CV's own section titles, as written on it (a CV with "PROFESSIONAL EXPERIENCE" keeps "Professional Experience").
+- Sections in this order when they exist: profile or summary, experience, projects, education, certifications, skills, languages, anything else. One section per topic, never the same section twice.
 - Each job, degree or course is one entry: "title" is the job title or degree, "subtitle" is the company or school (and city), "dates" is its period. Its bullets go in "lines", under that entry and no other.
 - A profile/summary is one entry with an empty title and the paragraph as its only line.
 - Skills, tools and languages are short items, one per line, with no sentences and no dates.
