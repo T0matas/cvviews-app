@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Check, Copy, Download, FileDown, FileText } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Check, Copy, Download, FileDown } from 'lucide-react';
 import LeoWriting from './leo-writing';
 import { cvDocText, type FullCv, markedCv, type Review, SEVERITY } from '@/lib/review';
+import { tidyCv } from '@/lib/cv-tidy';
 
 /** O ficheiro original, guardado só em memória, para desenhar as correções por cima dele. */
 export type CvSource = { pdf?: string; images?: string[] };
@@ -146,10 +147,6 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
   const marked = markedCv(review, cvText);
   const visual = Boolean(source?.pdf || source?.images?.length);
   const [shots, setShots] = useState<string[] | null>(null);
-  // O CV corrigido no formato original: as mesmas páginas, com as linhas reescritas no lugar.
-  const [fixedPages, setFixedPages] = useState<string[] | null>(null);
-  const [drawDone, setDrawDone] = useState(!visual);
-  const [showClean, setShowClean] = useState(false);
   const [step, setStep] = useState('A preparar o teu CV');
   const [drawFailed, setDrawFailed] = useState(!visual);
   const started = useRef(false);
@@ -164,20 +161,17 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
         const result = await drawCorrections({ review, images: source?.images, pdf: source?.pdf, onStep: setStep });
         if (!result.marks) throw new Error('nenhuma citação encontrada na página');
         setShots(result.pages.map((c) => c.toDataURL('image/jpeg', 0.9)));
-        if (result.fixed?.length) setFixedPages(result.fixed.map((c) => c.toDataURL('image/jpeg', 0.92)));
       } catch (err) {
-        console.warn('[cv corrigido]', err);
+        console.warn('[cv marcado]', err);
         setDrawFailed(true);
-      } finally {
-        setDrawDone(true);
       }
     })();
   }, [visual, review, source]);
 
-  // Com o ficheiro em memória, o CV corrigido fica no formato original. O modelo limpo só é pedido quando
-  // não há esse formato (texto colado, ou nenhuma linha encontrada na página) ou quando o pedem.
-  const original = Boolean(fixedPages?.length);
-  const needFull = !full && drawDone && (!original || showClean);
+  // O CV corrigido é sempre reescrito de raiz numa estrutura limpa (nunca remendado por cima da imagem,
+  // onde as linhas novas podiam ficar por cima de outras ou fora do sítio). Pede-se logo, em paralelo.
+  const needFull = !full;
+  const tidy = useMemo(() => (full ? tidyCv(full) : null), [full]);
   const [fullError, setFullError] = useState('');
   const asked = useRef(false);
   useEffect(() => {
@@ -216,37 +210,20 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
       )}
 
       <h4 className="rv-h">O teu CV, já corrigido</h4>
-      {original ? (
+      {tidy ? (
         <>
-          <p className="rv-p">O mesmo CV, com o mesmo formato: só as linhas corrigidas mudaram. Onde vires um <span className="cvdoc-blank">[X]</span>, põe o teu número.</p>
-          <div className="cvshot">
-            {fixedPages!.map((src, i) => <figure className="cvshot-page" key={i}><img src={src} alt={`Página ${i + 1} do teu CV, já corrigido`} /></figure>)}
-          </div>
+          <p className="rv-p">Tudo aplicado e arrumado: cada secção no sítio certo, pronto a enviar. Onde vires um <span className="cvdoc-blank">[X]</span>, põe o teu número.</p>
+          <article className="cvdoc"><CvDoc f={tidy} /></article>
           <p className="cvmark-act">
-            <button type="button" className="text-act" onClick={() => savePdf((m) => m.imagesPdf(fixedPages!), `${base} corrigido`)}><FileDown size={14} />Descarregar em PDF</button>
-            {fixedPages!.map((src, i) => <button type="button" className="text-act" key={i} onClick={() => download(src, `${base}-corrigido${fixedPages!.length > 1 ? `-${i + 1}` : ''}.jpg`)}><Download size={14} />Descarregar{fixedPages!.length > 1 ? ` a página ${i + 1}` : ' como imagem'}</button>)}
-            {!showClean && <button type="button" className="text-act" onClick={() => setShowClean(true)}><FileText size={14} />Ver também num modelo simples</button>}
-          </p>
-        </>
-      ) : visual && !drawDone ? (
-        <div className="cvshot-wait"><span className="cvshot-dot" aria-hidden="true" />A corrigir o teu CV…</div>
-      ) : (
-        <p className="rv-p">Tudo aplicado, pronto a usar. Onde vires um <span className="cvdoc-blank">[X]</span>, põe o teu número.</p>
-      )}
-      {(!original || showClean) && drawDone && (full ? (
-        <>
-          {original && <h4 className="rv-h">Num modelo simples</h4>}
-          <article className="cvdoc"><CvDoc f={full} /></article>
-          <p className="cvmark-act">
-            <button type="button" className="text-act" onClick={() => savePdf((m) => m.textPdf(full), `${full.name || 'CV'} - CV`)}><FileDown size={14} />Descarregar em PDF</button>
-            <CopyButton text={cvDocText(full)} label="Copiar o texto" />
+            <button type="button" className="text-act" onClick={() => savePdf((m) => m.textPdf(tidy), `${tidy.name || base} - CV`)}><FileDown size={14} />Descarregar em PDF</button>
+            <CopyButton text={cvDocText(tidy)} label="Copiar o texto" />
           </p>
         </>
       ) : fullError ? (
         <p className="rv-p">{fullError}</p>
       ) : (
-        <div className="cvshot-wait"><span className="cvshot-dot" aria-hidden="true" />A escrever o teu CV num modelo simples…</div>
-      ))}
+        <div className="cvshot-wait"><span className="cvshot-dot" aria-hidden="true" />A escrever o teu CV corrigido…</div>
+      )}
     </>
   );
 }

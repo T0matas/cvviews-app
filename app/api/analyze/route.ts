@@ -3,6 +3,7 @@
 // com `mode: "full"`, devolve o CV todo reescrito com essa revisão aplicada.
 import { cvBlock, friendlyError, hasKey, HUMAN_STYLE } from '@/lib/ai';
 import { blankUnknownNumbers, CV_STYLE, int, intoLanguage, LANGUAGE_NAMES, languageOf, list, obj, oneOf, str, structured } from '@/lib/ai-structured';
+import { tidyCv } from '@/lib/cv-tidy';
 import type { FullCv, Review } from '@/lib/review';
 
 export const runtime = 'nodejs';
@@ -92,6 +93,13 @@ Every line the review rewrote must appear as the review's improved version, and 
 Work line by line. Every line you write comes from a line of the same job or section on the CV (or the review's rewrite of that line). Never move a line to another job, never write the same line twice.
 Never add anything the CV does not say: no new duties, achievements, frequencies, skill levels, tools, jobs or results. Names, job titles, companies, places and dates stay exactly as written for each entry (a "Secretary" job stays "Secretary"), and no examples the CV does not name.
 A placeholder like [X] or [X %] is only for a figure missing from a result the CV already mentions; do not add new results around placeholders.
+Structure, always, even when the original layout was messy (two columns, a photo, text read from an image):
+- Name and headline go in "name" and "headline"; every email, phone, address, city and link goes in "contact" only, never in a section.
+- Sections in this order when they exist: profile/summary, experience, projects, education, certifications, skills, languages, other. One section per topic, never the same section twice.
+- Each job, degree or course is one entry: "title" is the job title or degree, "subtitle" is the company or school (and city), "dates" is its period. Its bullets go in "lines", under that entry and no other.
+- A profile/summary is one entry with an empty title and the paragraph as its only line.
+- Skills, tools and languages are short items, one per line, with no sentences and no dates.
+- No empty sections, no empty entries, no line that only repeats a title or a date, no stray text left over from the page layout (page numbers, "CV", "Curriculum Vitae", column labels).
 Plain text only, no markdown.`;
 const fullSystem = (lang: string) => lang && lang !== 'pt'
   ? `${FULL_SYSTEM}\nThe CV is in ${LANGUAGE_NAMES[lang]}. Every line you write, section titles included, stays in ${LANGUAGE_NAMES[lang]}; never translate it.\n${CV_STYLE(lang)}`
@@ -120,9 +128,9 @@ export async function POST(request: Request) {
       const alike = (a: string, b: string) => { const x = wordsOf(a), y = wordsOf(b); let both = 0; for (const w of x) if (y.has(w)) both++; return both / Math.max(1, Math.min(x.size, y.size)); };
       const rewrites = (given?.rewrites || []).filter((w) => w.original && w.improved);
       const fix = (line: string) => blankUnknownNumbers(rewrites.find((w) => alike(line, w.original) >= 0.75)?.improved ?? line, cvText, target);
-      // Nas datas, o filtro de travessões troca "Set 2020 – Presente" por "Set 2020, Presente": volta a ser um intervalo.
-      full.sections = (full.sections || []).map((s) => ({ ...s, entries: (s.entries || []).map((e) => ({ ...e, dates: String(e.dates || '').replace(/\s*,\s*/g, ' - '), lines: (e.lines || []).map(fix) })) }));
-      return Response.json({ full });
+      full.sections = (full.sections || []).map((s) => ({ ...s, entries: (s.entries || []).map((e) => ({ ...e, lines: (e.lines || []).map(fix) })) }));
+      // A estrutura fica sempre arrumada: contactos no cabeçalho, secções pela ordem certa, nada repetido ou solto.
+      return Response.json({ full: tidyCv(full) });
     }
 
     const ask = target.trim() ? `Vaga ou anúncio:\n<target>\n${target.trim().slice(0, 6000)}\n</target>\n\nRevê o meu CV para esta vaga.` : 'Revê o meu CV.';

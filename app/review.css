@@ -109,6 +109,9 @@ ul.notes { list-style: none; padding-left: 0; }
 .cvdoc-entry { margin-top: 10px; }
 .cvdoc-row { display: flex; justify-content: space-between; gap: 16px; }
 .cvdoc-row span { color: #555; white-space: nowrap; }
+/* Nada sai da folha: links e emails compridos partem, títulos compridos descem antes das datas. */
+.cvdoc { overflow-wrap: anywhere; }
+.cvdoc-row b { min-width: 0; }
 .cvdoc-sub { margin: 0; font-style: italic; color: #444; }
 .cvdoc ul { margin: 4px 0 0 20px; padding: 0; display: grid; gap: 2px; }
 .cvdoc p { margin: 4px 0 0; }

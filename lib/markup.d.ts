@@ -7,4 +7,4 @@ export function drawCorrections(input: {
   /** O PDF original em base64. */
   pdf?: string | null;
   onStep?: (step: string) => void;
-}): Promise<{ pages: HTMLCanvasElement[]; marks: number; fixed: HTMLCanvasElement[] }>;
+}): Promise<{ pages: HTMLCanvasElement[]; marks: number }>;
