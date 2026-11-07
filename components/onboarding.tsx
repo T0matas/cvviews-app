@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { Mail } from 'lucide-react';
 import { auth, messageFor, QUIET } from '@/lib/firebase';
-import Logo from './logo';
 
 // O primeiro ecrã no telemóvel, para quem ainda não tem sessão: entrar com a Google ou com o email,
 // ou saltar e usar a app sem conta.
@@ -28,7 +27,6 @@ export default function Onboarding({ onEmail, onSkip }: { onEmail: () => void; o
   return (
     <div className="onboard" role="dialog" aria-modal="true" aria-labelledby="onboard-title">
       <header className="onboard-top">
-        <span className="onboard-logo"><Logo /></span>
         <button className="onboard-skip" onClick={onSkip}>Saltar</button>
       </header>
       <Dashes />
@@ -49,7 +47,8 @@ export default function Onboarding({ onEmail, onSkip }: { onEmail: () => void; o
   );
 }
 
-// Uma nuvem de pequenos traços que se vão alinhando devagar, como folhas de um CV a ganhar forma.
+// Uma nuvem de pequenos traços que se juntam numa folha de CV (título e linhas de texto), ficam um instante
+// e voltam a soltar-se. Ao tocar ou passar o dedo, os traços afastam-se.
 function Dashes() {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -60,21 +59,66 @@ function Dashes() {
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let seed = 11;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    // Os traços: mais juntos no centro de uma folha inclinada, mais soltos à volta.
-    const dashes = Array.from({ length: 360 }, () => {
+    const TILT = -0.32;
+    const COUNT = 360;
+
+    // A folha: um título, uma linha mais curta por baixo e parágrafos, inclinada como na nuvem.
+    const rows: { y: number; len: number; heavy: boolean }[] = [];
+    rows.push({ y: -0.42, len: 0.62, heavy: true }, { y: -0.34, len: 0.38, heavy: false });
+    for (let y = -0.2, n = 0; y <= 0.44; y += 0.06, n++) {
+      const end = n % 4 === 3; // a última linha de cada parágrafo é mais curta
+      if (n % 4 === 0 && n) y += 0.03;
+      rows.push({ y, len: end ? 0.45 + rnd() * 0.2 : 0.86 + rnd() * 0.1, heavy: false });
+    }
+    const total = rows.reduce((s, r) => s + r.len * (r.heavy ? 1.6 : 1), 0);
+    const slots: { u: number; v: number; len: number }[] = [];
+    for (const r of rows) {
+      const k = Math.max(2, Math.round((COUNT * r.len * (r.heavy ? 1.6 : 1)) / total));
+      for (let i = 0; i < k; i++) slots.push({ u: -0.5 + (r.len * (i + 0.5)) / k, v: r.y, len: (r.len / k) * 0.78 });
+    }
+    const toPage = (u: number, v: number) => ({
+      x: 0.5 + u * Math.cos(TILT) * 0.62 - v * Math.sin(TILT) * 0.62,
+      y: 0.5 + u * Math.sin(TILT) * 0.62 + v * Math.cos(TILT) * 0.62,
+    });
+
+    const dashes = Array.from({ length: COUNT }, (_, i) => {
       const dense = rnd() < 0.62;
       const u = (rnd() - 0.5) * (dense ? 0.9 : 1.7);
       const v = (rnd() - 0.5) * (dense ? 1.1 : 1.8);
-      const tilt = -0.32;
+      const slot = slots[i % slots.length];
+      const page = toPage(slot.u, slot.v);
       return {
-        x: 0.56 + u * Math.cos(tilt) * 0.5 - v * Math.sin(tilt) * 0.42,
-        y: 0.5 + u * Math.sin(tilt) * 0.5 + v * Math.cos(tilt) * 0.42,
+        x: 0.56 + u * Math.cos(TILT) * 0.5 - v * Math.sin(TILT) * 0.42,
+        y: 0.5 + u * Math.sin(TILT) * 0.5 + v * Math.cos(TILT) * 0.42,
         a: rnd() * Math.PI * 2,
+        spin: (rnd() - 0.5) * 0.0012,
         len: dense ? 4 + rnd() * 4 : 5 + rnd() * 7,
+        px: page.x, py: page.y, plen: slot.len,
         phase: rnd() * Math.PI * 2,
+        delay: rnd() * 0.35,
         alpha: dense ? 0.7 + rnd() * 0.3 : 0.35 + rnd() * 0.4,
+        ox: 0, oy: 0, // afastamento pelo dedo, que volta devagar ao sítio
       };
     });
+
+    // O ciclo: solto, junta-se em folha, fica, solta-se.
+    const CYCLE = 9000;
+    const ease = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+    const gather = (t: number, delay: number) => {
+      const c = (t % CYCLE) / CYCLE;
+      const inn = Math.min(1, Math.max(0, (c - 0.12 - delay * 0.25) / 0.25));
+      const out = Math.min(1, Math.max(0, (c - 0.72 - delay * 0.15) / 0.2));
+      return ease(inn) * (1 - ease(out));
+    };
+
+    const pointer = { x: -1e4, y: -1e4 };
+    const move = (e: PointerEvent) => { const r = canvas.getBoundingClientRect(); pointer.x = e.clientX - r.left; pointer.y = e.clientY - r.top; };
+    const leave = () => { pointer.x = pointer.y = -1e4; };
+    canvas.addEventListener('pointermove', move);
+    canvas.addEventListener('pointerdown', move);
+    canvas.addEventListener('pointerleave', leave);
+    canvas.addEventListener('pointerup', leave);
+
     let frame = 0;
     const draw = (t: number) => {
       const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -86,25 +130,47 @@ function Dashes() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
       const size = Math.min(w, h);
-      const ox = (w - size) / 2, oy = (h - size) / 2;
+      const left = (w - size) / 2, top = (h - size) / 2;
       ctx.lineCap = 'round';
-      ctx.lineWidth = 1.3;
       for (const d of dashes) {
-        // cada traço roda devagar para a direção das linhas de uma folha, e volta a soltar-se
-        const pull = still ? 0.5 : (Math.sin(t / 2600 + d.phase) + 1) / 2;
-        const a = d.a * (1 - pull * 0.6) + -0.32 * pull * 0.6;
-        const x = ox + d.x * size, y = oy + d.y * size;
-        const dx = Math.cos(a) * d.len / 2, dy = Math.sin(a) * d.len / 2;
-        ctx.strokeStyle = `rgba(255,255,255,${d.alpha})`;
+        const g = still ? 1 : gather(t, d.delay);
+        // solto: flutua e roda devagar; na folha: alinhado com as linhas
+        const fx = d.x + Math.sin(t / 1700 + d.phase) * 0.012;
+        const fy = d.y + Math.cos(t / 2100 + d.phase) * 0.012;
+        let x = left + (fx + (d.px - fx) * g) * size;
+        let y = top + (fy + (d.py - fy) * g) * size;
+        const free = d.a + t * d.spin;
+        // um traço não tem sentido: roda para a inclinação da folha pelo caminho mais curto
+        const target = TILT + Math.PI * Math.round((free - TILT) / Math.PI);
+        const a = free + (target - free) * g;
+        const len = d.len + (d.plen * size - d.len) * g;
+
+        // o dedo empurra os traços para fora, e eles voltam
+        const dx0 = x + d.ox - pointer.x, dy0 = y + d.oy - pointer.y;
+        const dist = Math.hypot(dx0, dy0);
+        const R = 70;
+        if (dist < R && dist > 0.01) { const push = (1 - dist / R) * 6; d.ox += (dx0 / dist) * push; d.oy += (dy0 / dist) * push; }
+        d.ox *= 0.92; d.oy *= 0.92;
+        x += d.ox; y += d.oy;
+
+        const hx = Math.cos(a) * len / 2, hy = Math.sin(a) * len / 2;
+        ctx.lineWidth = 1.3 + g * 0.5;
+        ctx.strokeStyle = `rgba(255,255,255,${d.alpha + (0.95 - d.alpha) * g * 0.6})`;
         ctx.beginPath();
-        ctx.moveTo(x - dx, y - dy);
-        ctx.lineTo(x + dx, y + dy);
+        ctx.moveTo(x - hx, y - hy);
+        ctx.lineTo(x + hx, y + hy);
         ctx.stroke();
       }
       if (!still) frame = requestAnimationFrame(draw);
     };
     frame = requestAnimationFrame(draw);
-    return () => cancelAnimationFrame(frame);
+    return () => {
+      cancelAnimationFrame(frame);
+      canvas.removeEventListener('pointermove', move);
+      canvas.removeEventListener('pointerdown', move);
+      canvas.removeEventListener('pointerleave', leave);
+      canvas.removeEventListener('pointerup', leave);
+    };
   }, []);
   return <canvas ref={ref} className="onboard-art" aria-hidden="true" />;
 }

@@ -78,6 +78,13 @@ ${HUMAN_STYLE}
 ${REWRITE_RULES}`,
 };
 
+// A língua escolhida nas Configurações vem por último, para valer sobre a regra de pt-PT.
+const LANG_NOTE: Record<string, string> = {
+  'pt-PT': '',
+  'pt-BR': '\n\nLíngua: ignora a regra de português de Portugal acima e responde sempre em português do Brasil (pt-BR), com o vocabulário e a gramática do Brasil.',
+  en: '\n\nLanguage: ignore the European Portuguese rule above and always answer in English.',
+};
+
 const textResponse = (stream: ReadableStream<Uint8Array>, mode: 'live' | 'demo') =>
   new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-CVViews-Mode': mode, 'Cache-Control': 'no-store' } });
 
@@ -127,7 +134,7 @@ export async function POST(request: Request) {
           stream: true,
           messages: [{ role: 'system', content: `${SYSTEM_PROMPTS[mode]}
 
-${today(web)}${memoryNote(body.memory, last.text, history.some((m) => m.attachments?.some((f) => f.data?.trim())))}` }, ...turns],
+${today(web)}${memoryNote(body.memory, last.text, history.some((m) => m.attachments?.some((f) => f.data?.trim())))}${LANG_NOTE[body.lang ?? "pt-PT"] ?? ""}` }, ...turns, ...(LANG_NOTE[body.lang ?? "pt-PT"] ? [{ role: "system", content: LANG_NOTE[body.lang!].trim() }] : [])],
         }, request.signal);
 
         // O texto sai uma palavra atrás do modelo, para o humanize() ver um travessão junto

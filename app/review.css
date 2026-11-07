@@ -4,8 +4,10 @@
 
 :root { --del: #c4432c; --ins: #137a4f; --ins-soft: #e7f5ee; --del-soft: #fbece8; --warn: #b86a12; --warn-soft: #fbf1e3; }
 @media (prefers-color-scheme: dark) {
-  :root { --del: #ee8a76; --ins: #74c99c; --ins-soft: #162b20; --del-soft: #341d18; --warn: #e2a56a; --warn-soft: #32241a; }
+  :root:not([data-theme="light"]) { --del: #ee8a76; --ins: #74c99c; --ins-soft: #162b20; --del-soft: #341d18; --warn: #e2a56a; --warn-soft: #32241a; }
 }
+/* Tema escolhido nas Configurações */
+:root[data-theme="dark"] { --del: #ee8a76; --ins: #74c99c; --ins-soft: #162b20; --del-soft: #341d18; --warn: #e2a56a; --warn-soft: #32241a; }
 
 /* ---------------- Texto a aparecer ---------------- */
 .prose.is-revealing > * { animation: block-in .5s var(--ease) both; }
@@ -489,3 +491,103 @@ ul.notes { list-style: none; padding-left: 0; }
   .hello h1 .hello-name { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .welcome { animation: none; } .mode-switch::before { transition: none; } }
+
+/* ---- Mais natural e minimalista (nov. 2026) ---- */
+/* Fundo quase preto em vez de preto puro; a barra lateral um tom abaixo, sem linha a separar. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #131313; --bg-2: #1b1b1b; --bg-3: #252525;
+    --line: #222222; --line-2: #2e2e2e;
+    --field: #1b1b1b; --field-line: rgb(255 255 255 / .06);
+    --card: #171717; --rail: #0f0f0f; --btn-ink: #131313;
+  }
+}
+/* Tema escolhido nas Configurações */
+:root[data-theme="dark"] {
+    --bg: #131313; --bg-2: #1b1b1b; --bg-3: #252525;
+    --line: #222222; --line-2: #2e2e2e;
+    --field: #1b1b1b; --field-line: rgb(255 255 255 / .06);
+    --card: #171717; --rail: #0f0f0f; --btn-ink: #131313;
+  }
+.sidebar { background: var(--rail); border-right-color: transparent; }
+.rail { border-right-color: transparent; }
+
+/* Barra lateral: a navegação em tinta normal, o histórico um degrau abaixo; fundo só no hover e na conversa aberta. */
+.side-row { color: var(--ink); }
+.new-chat, .side-row.is-on { background: transparent; font-weight: 400; }
+.new-chat:hover, .side-row:hover { background: var(--bg-2); }
+.history-link { color: var(--ink-2); font-weight: 400; }
+.history-item:hover .history-link, .history-item.is-active .history-link { color: var(--ink); }
+.history-item.is-active { background: var(--bg-2); }
+/* "Entrar" como as outras linhas, sem contorno. */
+.sidebar-footer { border-top-color: transparent; }
+.signin-btn { justify-content: flex-start; padding: 0 12px; border: 0; color: var(--ink-2); font-weight: 400; }
+.signin-btn:hover { color: var(--ink); background: var(--bg-2); }
+
+/* A saudação numa só cor. */
+.hello h1 .hello-name { color: inherit; }
+
+/* Enviar: apagado sem texto, só ganha tinta quando há algo para enviar. */
+.send-btn.is-idle { color: var(--ink-3); background: var(--bg-3); }
+
+/* PC: a caixa ao centro (um pouco acima do meio), o modo logo por baixo dela e as ideias como pílulas de uma linha. */
+@media (min-width: 821px) {
+  .welcome { grid-template-rows: 1fr auto auto auto auto 1.35fr; padding-bottom: var(--top); }
+  .welcome .hello { grid-row: 2; }
+  .welcome .composer-wrap { grid-row: 3; }
+  .mode-switch { grid-row: 4; margin-top: clamp(14px, 2.2vh, 20px); background: transparent; }
+  .mode-switch button { height: 30px; padding: 0 14px; color: var(--ink-3); font-size: 13.5px; }
+  .mode-switch button.is-on { color: var(--ink); }
+  .mode-switch::before { background: var(--bg-2); }
+  .ideas { grid-row: 5; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: clamp(18px, 3vh, 28px); }
+  .idea { flex-direction: row; align-items: center; height: 36px; padding: 0 14px; border: 1px solid var(--line-2); border-radius: 999px; background: transparent; }
+  .idea:hover { background: var(--bg-2); }
+  .idea-icon, .idea small { display: none; }
+  .idea strong { color: var(--ink-2); font-size: 14px; font-weight: 400; white-space: nowrap; }
+  .idea:hover strong { color: var(--ink); }
+}
+
+
+/* PC: o logo à frente da saudação, na mesma linha, do tamanho das letras. */
+@media (min-width: 821px) {
+  .welcome .hello { flex-direction: row; align-items: center; justify-content: center; gap: .45em; font-size: clamp(28px, min(4.6vh, 2.7vw), 44px); }
+  .welcome .hello-logo { width: 1.5em; height: .9em; margin-top: .04em; }
+}
+
+/* A saudação numa serifada (Literata), leve e com espaçamento natural, como um título de livro. */
+.welcome .hello h1 { font-family: var(--serif); font-weight: 400; letter-spacing: -.015em; font-optical-sizing: auto; }
+/* PC: a saudação sempre numa só linha, junto ao logo; encolhe com a janela em vez de partir. */
+@media (min-width: 821px) {
+  .welcome .hello h1 { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-wrap: nowrap; font-size: clamp(22px, min(4.6vh, 2.5vw), 44px); }
+  .welcome .hello { font-size: clamp(22px, min(4.6vh, 2.5vw), 44px); }
+}
+/* O tamanho segue a largura da coluna (não só a da janela), para a frase caber sempre inteira. */
+@media (min-width: 821px) {
+  .welcome { container-type: inline-size; }
+  .welcome .hello, .welcome .hello h1 { font-size: clamp(18px, min(4.6vh, 4.4cqi), 42px); }
+}
+
+/* ---- Acabamentos: saudação curta, modo dentro da caixa, entrada rápida ---- */
+/* Entrada: um fade curto, sem desfoque. */
+@keyframes settle-quick { from { opacity: 0; transform: translateY(4px); } }
+.welcome { animation: settle-quick .3s var(--ease) both; }
+
+/* O e-mail da conta fica só dentro do menu "…". */
+.menu-email { overflow: hidden; margin: 0 0 4px; padding: 8px 10px 10px; border-bottom: 1px solid var(--line); color: var(--ink-3); font-size: 12.5px; white-space: nowrap; text-overflow: ellipsis; }
+
+/* "Pesquisar conversas" na mesma tinta que as outras linhas. */
+.search input::placeholder { color: var(--ink); }
+
+@media (min-width: 821px) {
+  /* "Boa tarde, Daniel" sozinho; a pergunta fica para o telemóvel. */
+  .welcome .hello-q { display: none; }
+  /* O modo passa para dentro da caixa, ao lado do "+": uma só fila de pílulas por baixo. */
+  .welcome .mode-switch { display: none; }
+  .composer-row .mode-picker.in-composer { order: -1; align-self: flex-end; margin: 0 0 calc((var(--ch) - 32px) / 2) -2px; }
+  .in-composer .meta-btn { height: 32px; padding: 0 8px 0 10px; border-radius: 999px; color: var(--ink-2); font-size: 14px; }
+  .in-composer .meta-btn:hover, .in-composer .meta-btn[aria-expanded="true"] { color: var(--ink); background: var(--bg-3); }
+  .in-composer .mode-menu { top: 40px; bottom: auto; transform-origin: top left; }
+  /* Sugestões com contorno mais suave, que só se marca no hover. */
+  .idea { border-color: var(--line); }
+  .idea:hover { border-color: var(--line-2); }
+}

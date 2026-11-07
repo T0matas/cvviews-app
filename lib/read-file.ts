@@ -5,9 +5,25 @@
 // descarrega) segue como fotografias das páginas, que o servidor transcreve com o modelo de visão.
 
 const MAX_PAGES = 4;
+// O modelo de visão recebe cópias reduzidas; o CV corrigido é desenhado a partir das páginas em 4K.
 const MAX_SIDE = 1800;
+const HI_SIDE = 3840;
 
-type PdfResult = { text: string } | { images: string[] };
+type PdfResult = { text: string } | { images: string[]; hires: string[] };
+
+// Uma cópia reduzida de uma página já desenhada, para o modelo de visão.
+function shrink(source: HTMLCanvasElement | HTMLImageElement, width: number, height: number) {
+  const scale = Math.min(1, MAX_SIDE / Math.max(width, height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(width * scale);
+  canvas.height = Math.round(height * scale);
+  const context = canvas.getContext('2d')!;
+  context.imageSmoothingQuality = 'high';
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
 
 async function pdfjs() {
   const lib = await import('pdfjs-dist');
@@ -28,12 +44,13 @@ export async function readPdf(file: File): Promise<PdfResult> {
     const text = pages.join('\n\n').replace(/[ \t]+\n/g, '\n').trim();
     if (text.replace(/\s/g, '').length >= 40) return { text };
 
-    // Sem texto: desenha as primeiras páginas em JPEG.
+    // Sem texto: desenha as primeiras páginas em 4K (para o CV corrigido) e uma cópia reduzida (para a leitura).
     const images: string[] = [];
+    const hires: string[] = [];
     for (let n = 1; n <= Math.min(pdf.numPages, MAX_PAGES); n++) {
       const page = await pdf.getPage(n);
       const base = page.getViewport({ scale: 1 });
-      const viewport = page.getViewport({ scale: Math.min(2.5, MAX_SIDE / Math.max(base.width, base.height)) });
+      const viewport = page.getViewport({ scale: HI_SIDE / Math.max(base.width, base.height) });
       const canvas = document.createElement('canvas');
       canvas.width = Math.round(viewport.width);
       canvas.height = Math.round(viewport.height);
@@ -41,9 +58,10 @@ export async function readPdf(file: File): Promise<PdfResult> {
       context.fillStyle = '#fff';
       context.fillRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvas, canvasContext: context, viewport }).promise;
-      images.push(canvas.toDataURL('image/jpeg', 0.85));
+      hires.push(canvas.toDataURL('image/jpeg', 0.97));
+      images.push(shrink(canvas, canvas.width, canvas.height));
     }
-    return { images };
+    return { images, hires };
   } finally {
     void task.destroy();
   }
@@ -64,6 +82,32 @@ export async function readWord(file: File) {
   return value.trim();
 }
 
+// A fotografia na resolução original (sem a reduzir), sobre fundo branco como as cópias para a leitura:
+// um PNG com transparência ficava com fundo preto e a leitura das linhas falhava.
+export async function readOriginal(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('imagem inválida'));
+      image.src = url;
+    });
+    const scale = Math.min(1, 4800 / Math.max(img.naturalWidth, img.naturalHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(img.naturalWidth * scale);
+    canvas.height = Math.round(img.naturalHeight * scale);
+    const context = canvas.getContext('2d')!;
+    context.imageSmoothingQuality = 'high';
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/jpeg', 0.97);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
 // Fotografias de um CV: reduzidas para caberem no limite do modelo de visão.
 export async function readImage(file: File): Promise<string> {
   const url = URL.createObjectURL(file);
@@ -74,15 +118,7 @@ export async function readImage(file: File): Promise<string> {
       image.onerror = () => reject(new Error('imagem inválida'));
       image.src = url;
     });
-    const scale = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.round(img.naturalWidth * scale);
-    canvas.height = Math.round(img.naturalHeight * scale);
-    const context = canvas.getContext('2d')!;
-    context.fillStyle = '#fff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(img, 0, 0, canvas.width, canvas.height);
-    return canvas.toDataURL('image/jpeg', 0.85);
+    return shrink(img, img.naturalWidth, img.naturalHeight);
   } finally {
     URL.revokeObjectURL(url);
   }

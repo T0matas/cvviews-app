@@ -18,7 +18,7 @@ import { auth } from '@/lib/firebase';
 import { type Rating, sendFeedback, trainingJsonl } from '@/lib/feedback';
 import { clearRemote, EMPTY_MEMORY, isEmpty, loadLocal, loadRemote, MAX_CV, type Memory, saveLocal, saveRemote } from '@/lib/memory';
 import ReviewView, { type CvSource } from './review-view';
-import { readImage, readPdf, readWord, toBase64 } from '@/lib/read-file';
+import { readImage, readOriginal, readPdf, readWord, toBase64 } from '@/lib/read-file';
 import { type FullCv, type Review, reviewSummary } from '@/lib/review';
 import { useRecorder } from '@/lib/use-recorder';
 import { SEARCH_SIGNAL, type Attachment, type ChatRequest, type Conversation, type Message, type Mode } from '@/lib/types';
@@ -115,6 +115,14 @@ export default function ChatApp() {
     query.addEventListener('change', update);
     return () => query.removeEventListener('change', update);
   }, []);
+  // A saudação segue a hora do dia (calculada no navegador, para usar a hora de quem está a ver).
+  const [greeting, setGreeting] = useState('Olá');
+  useEffect(() => {
+    const update = () => { const h = new Date().getHours(); setGreeting(h >= 5 && h < 12 ? 'Bom dia' : h >= 12 && h < 20 ? 'Boa tarde' : 'Boa noite'); };
+    update();
+    const timer = setInterval(update, 60_000);
+    return () => clearInterval(timer);
+  }, []);
   const [profileMenu, setProfileMenu] = useState<'rail' | 'panel' | null>(null);
   const [itemMenu, setItemMenu] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
@@ -204,6 +212,13 @@ export default function ChatApp() {
     if (!hydrated) return;
     try { localStorage.setItem(storageKey(user?.uid), JSON.stringify(conversations)); } catch { /* cheio ou bloqueado */ }
   }, [conversations, hydrated, user?.uid]);
+
+  // O tema: o do sistema, ou claro/escuro fixo.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (settings.theme === 'system') delete root.dataset.theme;
+    else root.dataset.theme = settings.theme;
+  }, [settings.theme]);
 
   function updateSettings(next: Settings) {
     setSettings(next);
@@ -316,8 +331,10 @@ export default function ChatApp() {
         const response = await fetch('/api/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ images: pages }) });
         const result = (await response.json()) as { text?: string; error?: string };
         if (!response.ok || !result.text) return drop(result.error || `Não foi possível ler ${file.name}.`);
-        // Fotografias e PDFs feitos de imagens: as correções desenham-se sobre as páginas.
-        ready(result.text, { images: pages });
+        // Fotografias e PDFs feitos de imagens: as correções desenham-se sobre as páginas na melhor qualidade
+        // (a fotografia original, sem recompressão; o PDF desenhado em 4K).
+        const sharp = isImage ? [await readOriginal(file)] : pdf && 'hires' in pdf ? pdf.hires : pages;
+        ready(result.text, { images: sharp });
       } catch {
         drop(`Não foi possível ler ${file.name}.`);
       }
@@ -363,6 +380,7 @@ export default function ChatApp() {
     const payload: ChatRequest = {
       mode: conversationMode,
       web: settings.web,
+      lang: settings.lang,
       messages: history.map((m) => ({ role: m.role, text: m.text, attachments: attachmentData.current.get(m.id) })),
       memory: settings.memory && !isEmpty(memoryRef.current) ? memoryRef.current : undefined,
     };
@@ -546,6 +564,31 @@ export default function ChatApp() {
     if (event.dataTransfer.files.length) void addFiles(event.dataTransfer.files);
   };
 
+  // O modo (Recrutador/Candidato). No ecrã inicial do PC fica dentro da caixa, ao lado do "+";
+  // no resto, por baixo da caixa.
+  const modeInComposer = wide && !messages.length;
+  const modePicker = (extra = '') => (
+    <div className={`mode-picker ${extra}`}>
+      <button type="button" className="meta-btn" onClick={(e) => { e.stopPropagation(); setModeMenuOpen((o) => !o); }} aria-haspopup="menu" aria-expanded={modeMenuOpen} title="Mudar o modo">
+        {MODES[mode].label}<ChevronDown size={14} />
+      </button>
+      {modeMenuOpen && (
+        <div className="menu mode-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+          {(Object.keys(MODES) as Mode[]).map((key) => {
+            const Icon = MODES[key].icon;
+            return (
+              <button key={key} role="menuitemradio" aria-checked={mode === key} onClick={() => changeMode(key)}>
+                <span className="mode-icon"><Icon size={16} /></span>
+                <span className="mode-copy"><strong>{MODES[key].label}</strong><small>{MODES[key].hint}</small></span>
+                {mode === key && <Check size={16} className="mode-check" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
   const composer = (
   <div className="composer-wrap">
     {!atBottom && messages.length > 0 && <button className="to-bottom" onClick={() => { setAtBottom(true); scrollToBottom(true); }} aria-label="Ir para o fim"><ArrowDown size={17} /></button>}
@@ -571,7 +614,7 @@ export default function ChatApp() {
           if (e.key === 'Enter' && !e.shiftKey && settings.enterToSend && !touch && !e.nativeEvent.isComposing) { e.preventDefault(); send(); }
         }}
         onPaste={(e) => { if (e.clipboardData.files.length) { e.preventDefault(); void addFiles(e.clipboardData.files); } }}
-        placeholder={messages.length ? 'Responde ao Leo…' : wide ? 'Em que posso ajudar hoje?' : 'Escreve ao Leo…'}
+        placeholder={messages.length ? 'Responde ao Leo…' : !wide ? 'Escreve ao Leo…' : mode === 'recrutador' ? 'Cola um CV ou descreve a vaga…' : 'Cola o teu CV ou pergunta ao Leo…'}
         aria-label="Mensagem"
       />
       <input ref={fileRef} type="file" hidden multiple accept=".pdf,.docx,.txt,.md,.jpg,.jpeg,.png,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,image/jpeg,image/png,image/webp" onChange={(e: ChangeEvent<HTMLInputElement>) => { if (e.target.files) void addFiles(e.target.files); e.target.value = ''; }} />
@@ -593,6 +636,7 @@ export default function ChatApp() {
               </div>
             )}
           </div>
+          {modeInComposer && modePicker('in-composer')}
           <button type="button" className="tool-btn mic-btn" onClick={recorder.start} disabled={recorder.state === 'transcribing'} aria-label="Ditar por voz" title="Ditar por voz">
             {recorder.state === 'transcribing' ? <Loader2 size={18} className="spin" /> : <Mic size={18} />}
           </button>
@@ -606,25 +650,7 @@ export default function ChatApp() {
     </form>
 
     <div className="composer-meta">
-      <div className="mode-picker">
-        <button type="button" className="meta-btn" onClick={(e) => { e.stopPropagation(); setModeMenuOpen((o) => !o); }} aria-haspopup="menu" aria-expanded={modeMenuOpen}>
-          {MODES[mode].label}<ChevronDown size={14} />
-        </button>
-        {modeMenuOpen && (
-          <div className="menu mode-menu" role="menu" onClick={(e) => e.stopPropagation()}>
-            {(Object.keys(MODES) as Mode[]).map((key) => {
-              const Icon = MODES[key].icon;
-              return (
-                <button key={key} role="menuitemradio" aria-checked={mode === key} onClick={() => changeMode(key)}>
-                  <span className="mode-icon"><Icon size={16} /></span>
-                  <span className="mode-copy"><strong>{MODES[key].label}</strong><small>{MODES[key].hint}</small></span>
-                  {mode === key && <Check size={16} className="mode-check" />}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {!modeInComposer && modePicker()}
       <button type="button" className="meta-btn" onClick={() => updateSettings({ ...settings, web: !settings.web })} title={settings.web ? 'Desligar a pesquisa na web' : 'Ligar a pesquisa na web'}>
         <strong>Leo</strong><span>{settings.web ? 'Com web' : 'Sem web'}</span>
       </button>
@@ -634,6 +660,7 @@ export default function ChatApp() {
 
   const accountMenu = (where: 'rail' | 'panel') => profileMenu === where && (
     <div className={`menu settings-menu from-${where}`} onClick={(e) => e.stopPropagation()}>
+      {user?.email && <div className="menu-email" title={user.email}>{user.email}</div>}
       <button onClick={() => { setProfileMenu(null); setDialog('settings'); }}><Settings2 size={15} /> Configurações</button>
       <button onClick={logout}><LogOut size={15} /> Terminar sessão</button>
     </div>
@@ -715,7 +742,7 @@ export default function ChatApp() {
           ) : (
             <button className="profile" onClick={(e) => { e.stopPropagation(); setProfileMenu(profileMenu === 'panel' ? null : 'panel'); }} aria-expanded={profileMenu === 'panel'}>
               {avatar}
-              <span className="profile-text"><strong>{userName || user?.email || ' '}</strong><small>{user?.email && userName ? user.email : MODES[newChatMode].label}</small></span>
+              <span className="profile-text"><strong>{userName || user?.email || ' '}</strong></span>
               <MoreHorizontal size={16} />
             </button>
           )}
@@ -741,7 +768,7 @@ export default function ChatApp() {
               </div>
               <div className="hello">
                 <Logo className="hello-logo" />
-                <h1><span className="hello-name">Olá{firstName ? `, ${firstName}` : ''}!</span> O que vamos fazer hoje?</h1>
+                <h1><span className="hello-name">{greeting}{firstName ? `, ${firstName}` : ''}</span><span className="hello-q"> O que vamos fazer hoje?</span></h1>
               </div>
               {wide && composer}
               <div className="ideas">

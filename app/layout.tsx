@@ -46,7 +46,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-PT">
+    <html lang="pt-PT" suppressHydrationWarning>
+      <head>
+        {/* O tema escolhido nas Configurações, aplicado antes de pintar a página (sem piscar). */}
+        <script dangerouslySetInnerHTML={{ __html: "try{var t=JSON.parse(localStorage.getItem('cvviews-settings')||'{}').theme;if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}" }} />
+      </head>
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
         {children}

@@ -171,9 +171,9 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
         setPremarked(result.premarked);
         // O CV corrigido é sempre o próprio ficheiro: o que coube foi trocado no sítio; o resto vai em baixo, para aplicar à mão.
         setUnplaced(result.unplaced);
-        if (result.corrected.length) setFixedShots(result.corrected.map((c) => c.toDataURL('image/jpeg', 0.96)));
+        if (result.corrected.length) setFixedShots(result.corrected.map((c) => c.toDataURL('image/jpeg', 1)));
         if (!result.marks) throw new Error('nenhuma citação encontrada na página');
-        setShots(result.pages.map((c) => c.toDataURL('image/jpeg', 0.9)));
+        setShots(result.pages.map((c) => c.toDataURL('image/jpeg', 0.97)));
       } catch (err) {
         console.warn('[cv marcado]', err);
         setDrawFailed(true);

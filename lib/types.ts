@@ -42,6 +42,8 @@ export type ChatRequest = {
   mode: Mode;
   /** Pesquisa na web (Groq browser_search). Ligada por omissão. */
   web?: boolean;
+  /** Língua das respostas: pt-PT (por omissão), pt-BR ou en. */
+  lang?: 'pt-PT' | 'pt-BR' | 'en';
   messages: { role: Role; text: string; attachments?: Attachment[] }[];
   /** O que o Leo se lembra desta pessoa (notas e o último CV), quando a memória está ligada. */
   memory?: { notes: string[]; cv?: { name: string; text: string }; applications?: { company: string; role: string; status: string }[] };
