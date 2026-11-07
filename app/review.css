@@ -438,3 +438,4 @@ ul.notes { list-style: none; padding-left: 0; }
 .desk-chip:hover { color: var(--ink); border-color: var(--ink-3); background: var(--bg-2); }
 .desk-chip:active { transform: scale(.97); }
 @media (prefers-reduced-motion: reduce) { .desk-modes, .desk-hello, .desk .composer-wrap, .desk-chips { animation: none; } }
+.rv-note { margin: 6px 0 10px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 12px; color: var(--ink-2); background: var(--bg-2); font-size: 13.5px; line-height: 1.5; }

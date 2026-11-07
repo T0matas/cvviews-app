@@ -151,6 +151,7 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
   const [shots, setShots] = useState<string[] | null>(null);
   // O CV corrigido em cima do próprio ficheiro: as mesmas páginas, só com as linhas trocadas.
   const [fixedShots, setFixedShots] = useState<string[] | null>(null);
+  const [premarked, setPremarked] = useState(false);
   const [step, setStep] = useState('A preparar o teu CV');
   const [drawFailed, setDrawFailed] = useState(!visual);
   const started = useRef(false);
@@ -166,6 +167,7 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
         const { drawCorrections, styleFor } = await import('@/lib/markup.js');
         const result = await drawCorrections({ review, images: source?.images, pdf: source?.pdf, onStep: setStep });
         setLook(result.layout ? { layout: result.layout, styleFor } : null);
+        setPremarked(result.premarked);
         if (result.fixed > 0) setFixedShots(result.corrected.map((c) => c.toDataURL('image/jpeg', 0.96)));
         if (!result.marks) throw new Error('nenhuma citação encontrada na página');
         setShots(result.pages.map((c) => c.toDataURL('image/jpeg', 0.9)));
@@ -209,6 +211,7 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
   return (
     <>
       <h4 className="rv-h">O teu CV, com as correções</h4>
+      {premarked && <p className="rv-note">Este ficheiro já era uma versão marcada de uma revisão anterior. Tirámos as marcas antigas antes de corrigir, mas para o melhor resultado anexa o CV original.</p>}
       <p className="rv-p">O que anexaste, com esta revisão por cima: <span className="leg leg-del">a riscar</span>, <span className="leg leg-ins">a escrever no lugar</span> e <span className="leg leg-hi">a manter</span>.</p>
       {shots ? (
         <div className="cvshot">

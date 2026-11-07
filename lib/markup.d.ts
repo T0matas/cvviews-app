@@ -64,6 +64,8 @@ export function drawCorrections(input: {
   corrected: HTMLCanvasElement[];
   /** Quantas linhas foram trocadas. */
   fixed: number;
+  /** O ficheiro já vinha marcado por uma revisão anterior (as marcas antigas foram tiradas). */
+  premarked: boolean;
 }>;
 
 export function styleFor(full: FullCv, layout: CvLayout | null, text?: string): CvStyle | null;
