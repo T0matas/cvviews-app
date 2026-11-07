@@ -66,6 +66,8 @@ export function drawCorrections(input: {
   fixed: number;
   /** O ficheiro já vinha marcado por uma revisão anterior (as marcas antigas foram tiradas). */
   premarked: boolean;
+  /** Para o teste ATS (só PDFs com texto): se há duas colunas e quantas vezes a ordem do texto salta entre elas. */
+  ats: { columns: boolean; switches: number } | null;
 }>;
 
 export function styleFor(full: FullCv, layout: CvLayout | null, text?: string): CvStyle | null;

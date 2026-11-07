@@ -7,6 +7,7 @@ import { cvDocText, type FullCv, markedCv, type Review, SEVERITY } from '@/lib/r
 import { tidyCv } from '@/lib/cv-tidy';
 import type { CvLayout, styleFor as styleForType } from '@/lib/markup.js';
 import CvStyled from './cv-styled';
+import AtsCheck, { type AtsInfo } from './ats-check';
 
 /** O ficheiro original, guardado só em memória, para desenhar as correções por cima dele. */
 export type CvSource = { pdf?: string; images?: string[] };
@@ -152,6 +153,7 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
   // O CV corrigido em cima do próprio ficheiro: as mesmas páginas, só com as linhas trocadas.
   const [fixedShots, setFixedShots] = useState<string[] | null>(null);
   const [premarked, setPremarked] = useState(false);
+  const [atsInfo, setAtsInfo] = useState<AtsInfo>(null);
   const [step, setStep] = useState('A preparar o teu CV');
   const [drawFailed, setDrawFailed] = useState(!visual);
   const started = useRef(false);
@@ -168,6 +170,7 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
         const result = await drawCorrections({ review, images: source?.images, pdf: source?.pdf, onStep: setStep });
         setLook(result.layout ? { layout: result.layout, styleFor } : null);
         setPremarked(result.premarked);
+        setAtsInfo(result.ats);
         if (result.fixed > 0) setFixedShots(result.corrected.map((c) => c.toDataURL('image/jpeg', 0.96)));
         if (!result.marks) throw new Error('nenhuma citação encontrada na página');
         setShots(result.pages.map((c) => c.toDataURL('image/jpeg', 0.9)));
@@ -257,6 +260,9 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
       ) : (
         <div className="cvshot-wait"><span className="cvshot-dot" aria-hidden="true" />A escrever o teu CV corrigido…</div>
       )}
+
+      <h4 className="rv-h">Como um sistema de recrutamento (ATS) lê o teu CV</h4>
+      <AtsCheck text={cvText} kind={source?.pdf ? 'pdf' : source?.images?.length ? 'image' : 'other'} ats={atsInfo} />
     </>
   );
 }
