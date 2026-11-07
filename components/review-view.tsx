@@ -152,6 +152,7 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
   // O CV corrigido em cima do próprio ficheiro: as mesmas páginas, só com as linhas trocadas.
   const [fixedShots, setFixedShots] = useState<string[] | null>(null);
   const [premarked, setPremarked] = useState(false);
+  const [unplaced, setUnplaced] = useState<{ original: string; improved: string }[]>([]);
   const [step, setStep] = useState('A preparar o teu CV');
   const [drawFailed, setDrawFailed] = useState(!visual);
   const started = useRef(false);
@@ -168,7 +169,9 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
         const result = await drawCorrections({ review, images: source?.images, pdf: source?.pdf, onStep: setStep });
         setLook(result.layout ? { layout: result.layout, styleFor } : null);
         setPremarked(result.premarked);
-        if (result.fixed > 0) setFixedShots(result.corrected.map((c) => c.toDataURL('image/jpeg', 0.96)));
+        // O CV corrigido é sempre o próprio ficheiro: o que coube foi trocado no sítio; o resto vai em baixo, para aplicar à mão.
+        setUnplaced(result.unplaced);
+        if (result.corrected.length) setFixedShots(result.corrected.map((c) => c.toDataURL('image/jpeg', 0.96)));
         if (!result.marks) throw new Error('nenhuma citação encontrada na página');
         setShots(result.pages.map((c) => c.toDataURL('image/jpeg', 0.9)));
       } catch (err) {
@@ -230,6 +233,14 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
       {fixedShots ? (
         <>
           <p className="rv-p">O teu CV tal como está, com a mesma estrutura, imagens e cores: só as frases que a revisão riscou foram trocadas pelas novas. Onde vires um <span className="cvdoc-blank">[X]</span>, põe o teu número.</p>
+          {unplaced.length > 0 && (
+            <div className="rv-unplaced">
+              <p className="rv-p">{unplaced.length === 1 ? 'Esta correção não coube no desenho sem o estragar' : 'Estas correções não couberam no desenho sem o estragar'}: troca-as tu no teu ficheiro.</p>
+              <div className="vx vx-ba">{unplaced.map((u, i) => (
+                <div className="vx-ba-item" key={i}><p className="vx-before"><span>Antes</span>{u.original}</p><p className="vx-after"><span>Depois</span>{u.improved}</p></div>
+              ))}</div>
+            </div>
+          )}
           <div className="cvshot">
             {fixedShots.map((src, i) => <figure className="cvshot-page" key={i}><img src={src} alt={`Página ${i + 1} do teu CV, já corrigido`} /></figure>)}
           </div>

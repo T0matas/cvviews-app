@@ -196,3 +196,6 @@ img.avatar { object-fit: cover; border: 0; }
 .apps-adapt { display: inline-flex; align-items: center; gap: 6px; justify-self: start; color: var(--ink-2); font-size: 13.5px; }
 .apps-adapt:hover { color: var(--ink); }
 @media (max-width: 520px) { .apps-steps { grid-template-columns: repeat(3, 1fr); } .apps-stats { grid-template-columns: repeat(3, 1fr); } }
+
+.rv-unplaced { --good: #3fae74; --mid: #d9a33b; --low: #e0664f; margin: 6px 0 12px; }
+.rv-unplaced .vx-ba { margin-top: 8px; }

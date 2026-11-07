@@ -64,6 +64,8 @@ export function drawCorrections(input: {
   corrected: HTMLCanvasElement[];
   /** Quantas linhas foram trocadas. */
   fixed: number;
+  /** As correções que não couberam com segurança no desenho (a pessoa aplica-as à mão). */
+  unplaced: { original: string; improved: string }[];
   /** O ficheiro já vinha marcado por uma revisão anterior (as marcas antigas foram tiradas). */
   premarked: boolean;
   /** Para o teste ATS (só PDFs com texto): se há duas colunas e quantas vezes a ordem do texto salta entre elas. */
