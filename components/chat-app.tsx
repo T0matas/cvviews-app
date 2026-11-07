@@ -15,6 +15,7 @@ import SmoothProse from './smooth-prose';
 import SettingsDialog, { DEFAULT_SETTINGS, type Settings } from './settings-dialog';
 import { auth } from '@/lib/firebase';
 import { type Rating, sendFeedback, trainingJsonl } from '@/lib/feedback';
+import { clearRemote, EMPTY_MEMORY, isEmpty, loadLocal, loadRemote, MAX_CV, type Memory, saveLocal, saveRemote } from '@/lib/memory';
 import ReviewView, { type CvSource } from './review-view';
 import { readImage, readPdf, readWord, toBase64 } from '@/lib/read-file';
 import { type FullCv, type Review, reviewSummary } from '@/lib/review';
@@ -159,6 +160,44 @@ export default function ChatApp() {
     setConversations(loadConversations(storageKey(user?.uid)));
     setHydrated(true);
   }, [authReady, user?.uid]);
+
+  // A memória do Leo desta conta (ou deste dispositivo, sem sessão). Com sessão, a da conta manda; se a conta
+  // ainda não tem nenhuma, fica a deste dispositivo.
+  const [memory, setMemory] = useState<Memory>(EMPTY_MEMORY);
+  const memoryRef = useRef<Memory>(EMPTY_MEMORY);
+  const changeMemory = useCallback((next: Memory) => {
+    memoryRef.current = next;
+    setMemory(next);
+    saveLocal(user?.uid, next);
+    if (user) (isEmpty(next) ? clearRemote(user.uid) : saveRemote(user.uid, next)).catch((err) => console.warn('[memória]', err));
+  }, [user]);
+  useEffect(() => {
+    if (!authReady) return;
+    const local = loadLocal(user?.uid);
+    memoryRef.current = local;
+    setMemory(local);
+    if (!user) return;
+    let gone = false;
+    loadRemote(user.uid).then((remote) => {
+      if (gone) return;
+      if (remote) { memoryRef.current = remote; setMemory(remote); saveLocal(user.uid, remote); }
+      else if (!isEmpty(local)) saveRemote(user.uid, local).catch(() => {});
+    }).catch((err) => console.warn('[memória]', err));
+    return () => { gone = true; };
+  }, [authReady, user]);
+
+  // Depois de uma resposta, o Leo guarda o que ficou a saber de novo (num modelo pequeno, sem a pessoa esperar).
+  const remember = useCallback((question: string, answer: string) => {
+    if (!settings.memory || question.trim().length < 12 || !answer.trim()) return;
+    fetch('/api/memory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes: memoryRef.current.notes, question, answer: answer.slice(0, 4000) }) })
+      .then((res) => res.json())
+      .then((data: { notes?: string[] }) => {
+        if (!Array.isArray(data.notes)) return;
+        const now = memoryRef.current;
+        if (JSON.stringify(data.notes) !== JSON.stringify(now.notes)) changeMemory({ ...now, notes: data.notes });
+      })
+      .catch(() => {});
+  }, [settings.memory, changeMemory]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -324,6 +363,7 @@ export default function ChatApp() {
       mode: conversationMode,
       web: settings.web,
       messages: history.map((m) => ({ role: m.role, text: m.text, attachments: attachmentData.current.get(m.id) })),
+      memory: settings.memory && !isEmpty(memoryRef.current) ? memoryRef.current : undefined,
     };
 
     let text = '';
@@ -346,6 +386,7 @@ export default function ChatApp() {
       }
       cancelAnimationFrame(frame);
       write();
+      remember(history.at(-1)?.text ?? '', text);
     } catch {
       if (controller.signal.aborted) { write(); }
       else { text = text || 'Não foi possível obter uma resposta. Verifica a ligação e tenta de novo.'; write(true); }
@@ -382,6 +423,9 @@ export default function ChatApp() {
     }
 
     const files = pending;
+    // O CV anexado fica na memória, para as próximas conversas.
+    const cvFile = files.find((f) => f.data.trim().length >= 200);
+    if (settings.memory && cvFile) changeMemory({ ...memoryRef.current, cv: { name: cvFile.name, text: cvFile.data.trim().slice(0, MAX_CV) } });
     setDraft('');
     setPending([]);
     // Um CV anexado (seja que ficheiro for) é revisto como no site; o texto escrito com ele conta como a vaga.
@@ -767,6 +811,8 @@ export default function ChatApp() {
           conversationCount={conversations.length}
           onExport={exportConversations}
           onExportTraining={exportTraining}
+          memory={memory}
+          onMemoryChange={changeMemory}
           onClearAll={clearAll}
           onSignIn={() => setDialog('auth')}
           onSignOut={logout}

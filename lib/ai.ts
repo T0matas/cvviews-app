@@ -96,6 +96,8 @@ export class ApiError extends Error {
 // O plano gratuito da Groq limita os tokens por minuto de cada modelo. Quando o principal enche,
 // pede-se a um mais pequeno; se ambos estiverem cheios e a espera for curta, espera-se.
 const FALLBACK_MODEL = PROVIDER.name === 'Groq' ? process.env.GROQ_FALLBACK_MODEL || 'openai/gpt-oss-20b' : null;
+// Para tarefas pequenas e frequentes (como a memória), o modelo mais pequeno: poupa o limite por minuto do principal.
+export const SMALL_MODEL = FALLBACK_MODEL;
 const MAX_WAIT_S = 25;
 const isRateLimit = (error: unknown) => error instanceof ApiError && (error.status === 429 || error.status === 413 || /rate_limit_exceeded/.test(error.message));
 function retryAfter(error: ApiError) {

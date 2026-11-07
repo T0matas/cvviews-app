@@ -17,6 +17,27 @@ function today(web: boolean) {
     : ' Se a pergunta depender de factos atuais, avisa que podes não estar a par das últimas mudanças.');
 }
 
+// O que o Leo se lembra desta pessoa, de conversas anteriores. O último CV só entra quando a conversa não tem
+// nenhum anexado e a pergunta é sobre CVs ou candidaturas (para não gastar o limite por minuto à toa).
+const ABOUT_CV = /(?<!\p{L})(cv|cvs|currículo|curriculo|vaga|vagas|candidatura|candidaturas|carta|entrevista|perfil|linkedin|experiência|experiencia|competências|competencias|adapta|melhora|revê|reve)(?!\p{L})/iu;
+function memoryNote(memory: ChatRequest['memory'], question: string, hasAttachment: boolean) {
+  if (!memory) return '';
+  const notes = (Array.isArray(memory.notes) ? memory.notes : []).filter((n) => typeof n === 'string' && n.trim()).slice(0, 20).map((n) => n.slice(0, 240));
+  let out = '';
+  if (notes.length) out += `
+
+O que já sabes sobre esta pessoa, de conversas anteriores. Usa-o quando ajudar, sem o repetir em cada resposta; se ela disser agora algo diferente, vale o que diz agora:
+- ${notes.join('\n- ')}`;
+  const cv = memory.cv;
+  if (cv?.text && !hasAttachment && ABOUT_CV.test(question)) {
+    out += `
+
+O último CV que esta pessoa partilhou contigo, de uma conversa anterior. Quando ela falar do CV dela, é deste: conta como anexado, por isso não lhe peças para o voltar a anexar.
+${cvBlock(String(cv.text).slice(0, 12000), String(cv.name || 'CV').slice(0, 160))}`;
+  }
+  return out;
+}
+
 // Tira as marcas de citação do browser_search (【1†L7-L10】).
 const stripCitations = (text: string) => text.replace(/【[^】]*】/g, '');
 
@@ -99,7 +120,7 @@ export async function POST(request: Request) {
           stream: true,
           messages: [{ role: 'system', content: `${SYSTEM_PROMPTS[mode]}
 
-${today(web)}` }, ...turns],
+${today(web)}${memoryNote(body.memory, last.text, history.some((m) => m.attachments?.some((f) => f.data?.trim())))}` }, ...turns],
         }, request.signal);
 
         // O texto sai uma palavra atrás do modelo, para o humanize() ver um travessão junto

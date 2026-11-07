@@ -72,7 +72,7 @@ export function blankUnknownNumbers(text: string, ...sources: string[]) {
 // O modelo às vezes escreve JSON que falha a verificação do esquema; uma segunda tentativa quase sempre resulta.
 const isBadJson = (error: unknown) => error instanceof ApiError && error.status === 400 && /json_validate_failed/.test(error.message);
 
-type StructuredRequest = { system: string; content: string; schema: object; maxTokens?: number };
+type StructuredRequest = { system: string; content: string; schema: object; maxTokens?: number; model?: string | null };
 
 export async function structured<T>(request: StructuredRequest): Promise<T> {
   // Up to three tries: a long answer (a whole CV) fails the check more often than a short one.
@@ -86,8 +86,9 @@ export async function structured<T>(request: StructuredRequest): Promise<T> {
   }
 }
 
-async function structuredOnce<T>({ system, content, schema, maxTokens = 12000 }: StructuredRequest): Promise<T> {
+async function structuredOnce<T>({ system, content, schema, maxTokens = 12000, model }: StructuredRequest): Promise<T> {
   const response = await complete({
+    ...(model ? { model } : {}),
     max_tokens: maxTokens,
     ...REASONING,
     response_format: { type: 'json_schema', json_schema: { name: 'result', schema, strict: true } },

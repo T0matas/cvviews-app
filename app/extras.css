@@ -110,3 +110,12 @@ img.avatar { object-fit: cover; border: 0; }
   .leo-ink { stroke-dashoffset: 0 !important; opacity: 1 !important; }
   .leo-pen { display: none; }
 }
+
+/* Memória do Leo, nas Configurações */
+.memory-block { display: flex; flex-direction: column; gap: 8px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+.memory-block strong { font-size: 14.5px; font-weight: 500; }
+.memory-block small { color: var(--ink-3); font-size: 13px; line-height: 1.45; }
+.memory-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.memory-list li { display: flex; align-items: center; gap: 8px; padding: 6px 4px 6px 12px; border-radius: 10px; background: var(--bg-2); font-size: 13.5px; line-height: 1.4; }
+.memory-list li span { flex: 1; min-width: 0; }
+.memory-list .icon-btn { width: 28px; height: 28px; }

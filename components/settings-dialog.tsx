@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import type { User } from 'firebase/auth';
-import { Database, Globe, LogIn, LogOut, Mic, Settings2, UserRound, X } from 'lucide-react';
+import { Brain, Database, FileText, Globe, LogIn, LogOut, Mic, Settings2, UserRound, X } from 'lucide-react';
 import type { Mode } from '@/lib/types';
+import { EMPTY_MEMORY, type Memory } from '@/lib/memory';
 
 export type Settings = {
   displayName: string;
@@ -12,13 +13,16 @@ export type Settings = {
   enterToSend: boolean;
   voiceLang: 'pt' | 'en';
   autoSendVoice: boolean;
+  /** O Leo lembra-se da pessoa entre conversas (notas e o último CV). */
+  memory: boolean;
 };
 
-export const DEFAULT_SETTINGS: Settings = { displayName: '', defaultMode: 'recrutador', web: true, enterToSend: true, voiceLang: 'pt', autoSendVoice: false };
+export const DEFAULT_SETTINGS: Settings = { displayName: '', defaultMode: 'recrutador', web: true, enterToSend: true, voiceLang: 'pt', autoSendVoice: false, memory: true };
 
 const TABS = [
   { id: 'geral', label: 'Geral', icon: Settings2 },
   { id: 'leo', label: 'Leo', icon: Globe },
+  { id: 'memoria', label: 'Memória', icon: Brain },
   { id: 'voz', label: 'Voz', icon: Mic },
   { id: 'dados', label: 'Dados', icon: Database },
   { id: 'conta', label: 'Conta', icon: UserRound },
@@ -32,6 +36,8 @@ type Props = {
   conversationCount: number;
   onExport: () => void;
   onExportTraining: () => void;
+  memory: Memory;
+  onMemoryChange: (next: Memory) => void;
   onClearAll: () => void;
   onSignIn: () => void;
   onSignOut: () => void;
@@ -59,7 +65,7 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
   );
 }
 
-export default function SettingsDialog({ settings, onChange, user, conversationCount, onExport, onExportTraining, onClearAll, onSignIn, onSignOut, onClose }: Props) {
+export default function SettingsDialog({ settings, onChange, user, conversationCount, onExport, onExportTraining, memory, onMemoryChange, onClearAll, onSignIn, onSignOut, onClose }: Props) {
   const [tab, setTab] = useState<Tab>('geral');
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) => onChange({ ...settings, [key]: value });
 
@@ -97,6 +103,29 @@ export default function SettingsDialog({ settings, onChange, user, conversationC
                   <Toggle label="Pesquisa na web" checked={settings.web} onChange={(v) => set('web', v)} />
                 </Row>
                 <Row title="Língua das respostas" hint="Português de Portugal. Se escreveres noutra língua, o Leo responde nessa."><span className="setting-value">pt-PT</span></Row>
+              </>
+            )}
+            {tab === 'memoria' && (
+              <>
+                <Row title="Memória" hint="O Leo lembra-se do que lhe contas (o que procuras, a tua experiência) e do teu último CV, de uma conversa para a outra.">
+                  <Toggle label="Memória" checked={settings.memory} onChange={(v) => set('memory', v)} />
+                </Row>
+                <div className="memory-block">
+                  <strong>O que o Leo sabe sobre ti</strong>
+                  {memory.notes.length ? (
+                    <ul className="memory-list">
+                      {memory.notes.map((note, i) => (
+                        <li key={i}><span>{note}</span><button className="icon-btn" onClick={() => onMemoryChange({ ...memory, notes: memory.notes.filter((_, k) => k !== i) })} aria-label={`Esquecer: ${note}`} title="Esquecer"><X size={14} /></button></li>
+                      ))}
+                    </ul>
+                  ) : <small>Ainda nada. Conta ao Leo para que vagas te candidatas e o que já fizeste, e ele vai guardando o essencial.</small>}
+                </div>
+                <Row title="O teu último CV" hint={memory.cv ? memory.cv.name : 'Quando anexares um CV, o Leo guarda-o para as próximas conversas.'}>
+                  {memory.cv ? <button className="ghost-btn" onClick={() => onMemoryChange({ ...memory, cv: undefined })}><FileText size={14} />Esquecer</button> : <span className="setting-value">Nenhum</span>}
+                </Row>
+                <Row title="Apagar a memória" hint={user ? 'Apaga as notas e o CV deste dispositivo e da tua conta.' : 'Apaga as notas e o CV deste dispositivo.'}>
+                  <button className="ghost-btn danger" disabled={!memory.notes.length && !memory.cv} onClick={() => { if (window.confirm('Apagar tudo o que o Leo sabe sobre ti?')) onMemoryChange(EMPTY_MEMORY); }}>Apagar</button>
+                </Row>
               </>
             )}
             {tab === 'voz' && (
