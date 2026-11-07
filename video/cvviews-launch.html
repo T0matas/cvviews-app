@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CVviews Launch</title>
+<style>
+@font-face { font-family: "Host Grotesk"; src: url("../public/fonts/host-grotesk-latin-wght-normal.woff2") format("woff2"); font-weight: 300 800; }
+@font-face { font-family: "Literata"; src: url("../public/fonts/literata-latin-opsz-normal.woff2") format("woff2"); font-weight: 200 900; }
+@font-face { font-family: "Caveat"; src: url("../public/fonts/caveat-latin-wght-normal.woff2") format("woff2"); font-weight: 400 700; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #111; overflow: hidden; }
+body { display: grid; place-items: center; font-family: "Host Grotesk", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+/* Palco 1920x1080; na pré-visualização encolhe para caber. Estilo de lançamento de produto: um quadro
+   pontilhado claro, notas adesivas coloridas, cursores com nome e tudo a entrar com um pequeno salto. */
+#stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; flex: none; background: #f6f5f2; transform-origin: center; }
+#grid { position: absolute; inset: -40px; background-image: radial-gradient(#d4d2cc 2px, transparent 2.4px); background-size: 40px 40px; }
+.abs { position: absolute; will-change: transform, opacity; }
+.scene { position: absolute; inset: 0; opacity: 0; visibility: hidden; }
+
+/* Tipografia */
+.kicker { font: 500 34px "Host Grotesk"; color: #6b6a66; letter-spacing: -.5px; }
+.title { font: 400 168px/1 "Literata"; letter-spacing: -6px; color: #141414; }
+.head { font: 500 86px/1.05 "Host Grotesk"; letter-spacing: -3.4px; color: #141414; text-align: center; white-space: nowrap; }
+.w { display: inline-block; }
+.leo { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Cursores com nome, como num quadro partilhado */
+.cur { left: 0; top: 0; z-index: 50; }
+.cur svg { width: 34px; height: 34px; display: block; filter: drop-shadow(0 3px 6px rgb(0 0 0 / .18)); }
+.cur b { position: absolute; left: 26px; top: 26px; padding: 6px 13px; border-radius: 10px 10px 10px 2px; color: #fff; font: 600 20px "Host Grotesk"; white-space: nowrap; }
+
+/* A caixa de mensagem */
+.composer { left: 360px; width: 1200px; height: 104px; display: flex; align-items: center; gap: 18px; padding: 0 22px 0 26px; border-radius: 60px; background: #fff; box-shadow: 0 2px 4px rgb(0 0 0 / .04), 0 24px 60px -20px rgb(0 0 0 / .22); }
+.composer .plus { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 50%; color: #141414; font: 300 44px/1 "Host Grotesk"; }
+.composer .typed { flex: 1; font: 400 36px "Host Grotesk"; color: #141414; white-space: nowrap; overflow: hidden; }
+.composer .typed.ph { color: #a3a19b; }
+.caret { display: inline-block; width: 3px; height: 40px; margin-left: 2px; vertical-align: -6px; background: #141414; }
+.composer .mode { font: 400 26px "Host Grotesk"; color: #8d8b85; }
+.composer .send { width: 66px; height: 66px; display: grid; place-items: center; border-radius: 50%; background: #141414; color: #fff; }
+.chip { left: 380px; display: flex; align-items: center; gap: 16px; padding: 14px 24px 14px 14px; border-radius: 22px; background: #fff; box-shadow: 0 12px 34px -12px rgb(0 0 0 / .25); font: 500 26px "Host Grotesk"; color: #141414; }
+.chip i { width: 52px; height: 52px; display: grid; place-items: center; border-radius: 14px; background: #fde4dd; color: #c4432c; font: 700 17px/1 "Host Grotesk"; font-style: normal; }
+.chip small { display: block; color: #8d8b85; font-size: 19px; font-weight: 400; }
+
+/* A folha do CV, com as marcas da revisão */
+.sheet { width: 640px; height: 860px; padding: 56px 56px; border-radius: 10px; background: #fff; box-shadow: 0 2px 4px rgb(0 0 0 / .05), 0 40px 80px -30px rgb(0 0 0 / .3); color: #222; }
+.sheet h1 { margin: 0; font: 600 44px "Host Grotesk"; letter-spacing: -1px; }
+.sheet h2 { margin: 6px 0 26px; font: 400 24px "Host Grotesk"; color: #777; }
+.sheet h6 { margin: 30px 0 12px; font: 700 15px "Host Grotesk"; letter-spacing: .14em; color: #999; }
+.sheet p { position: relative; margin: 0 0 12px; font: 400 21px/1.45 "Host Grotesk"; }
+.st { position: relative; display: inline-block; }
+.strike { position: absolute; left: -4px; right: -4px; top: 52%; height: 4px; border-radius: 3px; background: #e0533d; transform-origin: left; }
+.slip { padding: 14px 20px; border-radius: 14px; background: #fffdf4; box-shadow: 0 10px 26px -10px rgb(0 0 0 / .25); color: #1f8a55; font: 600 30px/1.2 "Caveat"; max-width: 420px; }
+
+/* Nota do CV */
+.ring { width: 360px; height: 360px; }
+.ring circle { fill: none; stroke-width: 10; }
+.ring .tr { stroke: #ebe9e4; }
+.ring .fl { stroke: #3fae74; stroke-linecap: round; transform: rotate(-90deg); transform-origin: center; }
+.score { text-align: center; }
+.score strong { display: block; font: 400 140px/1 "Literata"; letter-spacing: -4px; color: #141414; }
+.score span { font: 500 26px "Host Grotesk"; color: #6b6a66; }
+
+/* Notas adesivas */
+.sticky { width: 330px; min-height: 230px; padding: 30px 30px; border-radius: 6px; box-shadow: 0 3px 6px rgb(0 0 0 / .06), 0 22px 40px -18px rgb(0 0 0 / .3); color: #141414; }
+.sticky strong { display: block; margin-bottom: 10px; font: 600 38px/1.1 "Host Grotesk"; letter-spacing: -1px; }
+.sticky span { font: 400 25px/1.35 "Host Grotesk"; color: rgb(20 20 20 / .72); }
+.y { background: #ffe07a; } .p { background: #f9c6dc; } .g { background: #bfe8c9; } .b { background: #c4dbff; } .o { background: #ffd0a8; } .v { background: #ddd0ff; }
+
+/* A resposta do trabalho de casa */
+.answer { width: 980px; padding: 44px 52px; border-radius: 28px; background: #fff; box-shadow: 0 30px 70px -30px rgb(0 0 0 / .28); }
+.answer .q { font: 600 30px "Host Grotesk"; color: #141414; margin: 0 0 8px; }
+.answer .a { font: 400 28px/1.45 "Host Grotesk"; color: #3d3c39; margin: 0 0 26px; }
+.answer .wd { display: inline-block; }
+.doc { width: 300px; height: 380px; padding: 34px 30px; border-radius: 10px; background: #fff; box-shadow: 0 30px 60px -24px rgb(0 0 0 / .3); }
+.doc b { display: block; font: 600 22px "Host Grotesk"; margin-bottom: 18px; }
+.doc i { display: block; height: 10px; margin: 0 0 14px; border-radius: 5px; background: #e6e4df; }
+.burst { width: 14px; height: 14px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="grid"></div>
+
+  <!-- 1. Apresentação -->
+  <section class="scene" id="s1">
+    <div class="abs kicker" id="s1k" style="left:0;right:0;top:340px;text-align:center">Apresentamos</div>
+    <div class="abs" id="s1t" style="left:0;right:0;top:420px;display:flex;justify-content:center;align-items:center;gap:44px">
+      <svg class="leo" id="s1logo" viewBox="0 0 40 24" style="width:200px;height:120px;color:#141414" stroke-width="2.6"><path pathLength="1" d="M2 17c3-1 4-9 7-9s1 9 4 9 3-11 7-11-1 11 3 11 3-7 6-7 2 6 5 6 3-3 4-4"/></svg>
+      <div class="title" id="s1name">CVviews</div>
+    </div>
+    <div class="abs kicker" id="s1s" style="left:0;right:0;top:640px;text-align:center;font-size:40px;color:#3d3c39">O assistente que trata do teu CV. E de muito mais.</div>
+    <div class="abs sticky y" id="s1n1" style="left:190px;top:150px;width:250px;min-height:170px;transform:rotate(-6deg)"><strong>CV</strong><span>revisto em segundos</span></div>
+    <div class="abs sticky b" id="s1n2" style="left:1480px;top:640px;width:250px;min-height:170px"><strong>Leo</strong><span>o teu assistente</span></div>
+  </section>
+
+  <!-- 2. Anexa e pede -->
+  <section class="scene" id="s2">
+    <div class="abs head" id="s2h" style="left:0;right:0;top:200px">Anexa o teu CV. Pede o que quiseres.</div>
+    <div class="abs chip" id="s2chip"><i>PDF</i><div>cv-ana-silva.pdf<small>PDF · 240 KB</small></div></div>
+    <div class="abs composer" id="s2c" style="top:560px">
+      <div class="plus">+</div>
+      <div class="typed" id="s2typed"></div>
+      <div class="mode">Candidato <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="vertical-align:-4px"><path d="M6 9l6 6 6-6"/></svg></div>
+      <div class="send"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+    </div>
+  </section>
+
+  <!-- 3. A revisão -->
+  <section class="scene" id="s3">
+    <div class="abs sheet" id="s3sheet" style="left:260px;top:110px">
+      <h1>Ana Silva</h1><h2>Product Designer</h2>
+      <h6>PERFIL</h6>
+      <p><span class="st">Designer criativa e motivada.<i class="strike" id="s3k1"></i></span></p>
+      <h6>EXPERIÊNCIA</h6>
+      <p><b>Lumen Apps</b> · 2021 – Presente</p>
+      <p><span class="st">Responsável pelo design da app.<i class="strike" id="s3k2"></i></span></p>
+      <p>Testes com utilizadores todas as semanas.</p>
+      <p><b>Norte Digital</b> · 2019 – 2021</p>
+      <p>Interfaces para web e telemóvel.</p>
+      <h6>COMPETÊNCIAS</h6>
+      <p>Figma · Prototipagem · UX</p>
+    </div>
+    <div class="abs slip" id="s3s1" style="left:720px;top:270px;transform:rotate(-3deg)">Product designer com 4 anos em apps móveis e design systems</div>
+    <div class="abs slip" id="s3s2" style="left:720px;top:520px;transform:rotate(2deg)">Liderei o redesign da app, +[X]% de retenção</div>
+    <div class="abs" id="s3score" style="left:1280px;top:250px">
+      <svg class="ring" viewBox="0 0 120 120"><circle class="tr" cx="60" cy="60" r="48"/><circle class="fl" id="s3fill" cx="60" cy="60" r="48" stroke-dasharray="0 302"/></svg>
+      <div class="score abs" style="left:0;right:0;top:96px"><strong id="s3num">0</strong><span>Nota do CV</span></div>
+    </div>
+    <div class="abs kicker" id="s3cap" style="left:1210px;top:680px;width:500px;text-align:center;color:#141414;font-size:40px">Correções desenhadas no próprio ficheiro.</div>
+  </section>
+
+  <!-- 4. O trabalho de casa -->
+  <section class="scene" id="s4">
+    <div class="abs head" id="s4h" style="left:0;right:0;top:120px">E até o teu trabalho de casa.</div>
+    <div class="abs doc" id="s4doc" style="left:220px;top:330px;transform:rotate(-5deg)"><b>Ficha de História</b><i style="width:90%"></i><i style="width:70%"></i><i style="width:84%"></i><i style="width:60%"></i><i style="width:88%"></i><i style="width:50%"></i><i style="width:76%"></i></div>
+    <div class="abs composer" id="s4c" style="top:300px;left:600px;width:1100px;height:96px">
+      <div class="plus">+</div>
+      <div class="typed" id="s4typed"></div>
+      <div class="send"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></div>
+    </div>
+    <div class="abs answer" id="s4ans" style="left:660px;top:450px">
+      <p class="q">1. Indica duas causas da Primeira Guerra Mundial.</p>
+      <p class="a" id="s4a1">O assassinato do arquiduque Francisco Fernando e as alianças militares entre as potências.</p>
+      <p class="q">2. Em que ano terminou a guerra?</p>
+      <p class="a" id="s4a2" style="margin:0">Em 1918, com o armistício de 11 de novembro.</p>
+    </div>
+  </section>
+
+  <!-- 5. Tudo o resto -->
+  <section class="scene" id="s5">
+    <div class="abs head" id="s5h" style="left:0;right:0;top:110px">Tudo num só sítio.</div>
+    <div class="abs sticky y" id="n1" style="left:250px;top:330px"><strong>Memória</strong><span>O Leo lembra-se de ti e do teu último CV.</span></div>
+    <div class="abs sticky p" id="n2" style="left:620px;top:390px"><strong>Candidaturas</strong><span>Acompanha cada vaga e adapta o CV a cada uma.</span></div>
+    <div class="abs sticky g" id="n3" style="left:990px;top:320px"><strong>Voz</strong><span>Dita em vez de escrever.</span></div>
+    <div class="abs sticky v" id="n4" style="left:1360px;top:400px"><strong>CV em 4K</strong><span>Pronto a enviar, na melhor qualidade.</span></div>
+    <div class="abs sticky o" id="n5" style="left:430px;top:680px"><strong>Entrevistas</strong><span>Perguntas e respostas para treinar.</span></div>
+    <div class="abs sticky b" id="n6" style="left:1170px;top:690px"><strong>Recrutadores</strong><span>Grelhas e comparação justa de perfis.</span></div>
+  </section>
+
+  <!-- 6. Final -->
+  <section class="scene" id="s6">
+    <div class="abs" id="s6t" style="left:0;right:0;top:360px;display:flex;justify-content:center;align-items:center;gap:40px">
+      <svg class="leo" id="s6logo" viewBox="0 0 40 24" style="width:170px;height:102px;color:#141414" stroke-width="2.6"><path pathLength="1" d="M2 17c3-1 4-9 7-9s1 9 4 9 3-11 7-11-1 11 3 11 3-7 6-7 2 6 5 6 3-3 4-4"/></svg>
+      <div class="title" style="font-size:150px">CVviews</div>
+    </div>
+    <div class="abs kicker" id="s6s" style="left:0;right:0;top:570px;text-align:center;font-size:44px;color:#3d3c39">O teu próximo emprego começa aqui.</div>
+    <div class="abs" id="s6u" style="left:0;right:0;top:680px;text-align:center"><span style="display:inline-block;padding:16px 34px;border-radius:40px;background:#141414;color:#fff;font:500 32px 'Host Grotesk'">cvviews.me</span></div>
+  </section>
+
+  <!-- Cursores -->
+  <div class="abs cur" id="cA"><svg viewBox="0 0 24 24"><path d="M3 2l17 8.5-7.5 1.8L9 20z" fill="#7b61ff" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg><b style="background:#7b61ff">Ana</b></div>
+  <div class="abs cur" id="cL"><svg viewBox="0 0 24 24"><path d="M3 2l17 8.5-7.5 1.8L9 20z" fill="#141414" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg><b style="background:#141414">Leo</b></div>
+  <div class="abs cur" id="cR"><svg viewBox="0 0 24 24"><path d="M3 2l17 8.5-7.5 1.8L9 20z" fill="#ff7262" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg><b style="background:#ff7262">Rui</b></div>
+  <div class="abs cur" id="cM"><svg viewBox="0 0 24 24"><path d="M3 2l17 8.5-7.5 1.8L9 20z" fill="#14ae5c" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg><b style="background:#14ae5c">Marta</b></div>
+  <div id="bursts"></div>
+</div>
+
+<script>
+const DURATION = 36;
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, x) => a + (b - a) * x;
+const eio = (x) => (x < .5 ? 4 * x ** 3 : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const expo = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+// Salto: passa um pouco do fim e volta, como nos vídeos de produto.
+const back = (x) => { const c1 = 1.9, c3 = c1 + 1; return x <= 0 ? 0 : x >= 1 ? 1 : 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); };
+
+// As palavras dos títulos entram uma a uma.
+for (const id of ['s2h', 's4h', 's5h', 's1s', 's6s', 's3cap']) { const el = $(id); el.innerHTML = el.textContent.split(' ').map((w) => `<span class="w">${w}</span>`).join(' '); }
+for (const id of ['s4a1', 's4a2']) { const el = $(id); el.innerHTML = el.textContent.split(' ').map((w) => `<span class="wd">${w}</span>`).join(' '); }
+
+function scene(id, t, a, b, fin = .45, fout = .45) {
+  const el = $(id);
+  const v = t < a || t > b ? 0 : Math.min(prog(t, a, a + fin), 1 - prog(t, b - fout, b));
+  el.style.opacity = v;
+  el.style.visibility = v > 0 ? 'visible' : 'hidden';
+  return v;
+}
+// Entrada com salto: escala de 0.6 para 1 e sobe um pouco.
+function pop(el, t, t0, dur = .7, rot = null, from = .55) {
+  const k = prog(t, t0, t0 + dur);
+  const s = lerp(from, 1, back(k));
+  el.style.opacity = clamp(k * 3);
+  const r = rot ?? (el.dataset.rot ?? 0);
+  el.style.transform = `translateY(${(1 - expo(k)) * 30}px) scale(${s}) rotate(${r}deg)`;
+}
+function rise(el, t, t0, dur = .8, dy = 30) {
+  const k = expo(prog(t, t0, t0 + dur));
+  el.style.opacity = k;
+  el.style.transform = `translateY(${(1 - k) * dy}px)`;
+}
+function words(el, t, t0, step = .07, sel = '.w') {
+  el.querySelectorAll(sel).forEach((w, i) => {
+    const k = prog(t, t0 + i * step, t0 + i * step + .55);
+    w.style.opacity = clamp(k * 2.5);
+    w.style.transform = `translateY(${(1 - back(k)) * 40}px)`;
+    w.style.filter = k < 1 ? `blur(${(1 - k) * 6}px)` : 'none';
+  });
+}
+function draw(svg, t, a, b) { const p = svg.querySelector('path'); p.style.strokeDasharray = 1; p.style.strokeDashoffset = 1 - eio(prog(t, a, b)); }
+function type(el, text, t, a, b, ph = '') {
+  const n = Math.round(text.length * prog(t, a, b));
+  if (t < a && ph) { el.textContent = ph; el.classList.add('ph'); return; }
+  el.classList.remove('ph');
+  el.innerHTML = text.slice(0, n).replace(/ /g, '&nbsp;') + (t < b + .6 && Math.floor(t * 2.4) % 2 === 0 ? '<span class="caret"></span>' : '');
+}
+// Um cursor que vai de ponto em ponto: [tempo, x, y].
+function cursor(id, t, path, show) {
+  const c = $(id);
+  const on = t >= show[0] && t <= show[1];
+  c.style.opacity = on ? Math.min(prog(t, show[0], show[0] + .3), 1 - prog(t, show[1] - .3, show[1])) : 0;
+  let x = path[0][1], y = path[0][2];
+  for (let i = 0; i < path.length - 1; i++) {
+    const [t0, x0, y0] = path[i], [t1, x1, y1] = path[i + 1];
+    if (t >= t0 && t <= t1) { const k = eio(prog(t, t0, t1)); x = lerp(x0, x1, k); y = lerp(y0, y1, k); break; }
+    if (t > t1) { x = x1; y = y1; }
+  }
+  // um balanço leve, para parecer uma mão de verdade
+  x += Math.sin(t * 2.3 + id.length) * 3; y += Math.cos(t * 1.9 + id.length) * 3;
+  c.style.transform = `translate(${x}px, ${y}px)`;
+  return [x, y];
+}
+function cursors(id, t, segs) {
+  const seg = segs.find(([, show]) => t >= show[0] && t <= show[1]);
+  if (seg) return cursor(id, t, seg[0], seg[1]);
+  $(id).style.opacity = 0;
+}
+// Faíscas coloridas quando algo é enviado.
+const BURST_COLORS = ['#7b61ff', '#ff7262', '#14ae5c', '#ffc700', '#0d99ff', '#f24e1e'];
+const bursts = $('bursts');
+for (let i = 0; i < 18; i++) { const d = document.createElement('i'); d.className = 'abs burst'; d.style.background = BURST_COLORS[i % 6]; bursts.appendChild(d); }
+function burst(t, t0, x, y) {
+  [...bursts.children].forEach((d, i) => {
+    const k = prog(t, t0, t0 + .8);
+    const a = (i / 18) * Math.PI * 2, r = expo(k) * (110 + (i % 3) * 40);
+    d.style.opacity = k > 0 && k < 1 ? 1 - k : 0;
+    d.style.transform = `translate(${x + Math.cos(a) * r}px, ${y + Math.sin(a) * r}px) scale(${1 - k * .6})`;
+  });
+}
+
+function render(t) {
+  $('grid').style.transform = `translate(${(t * 6) % 40}px, ${(t * 4) % 40}px)`;
+  for (const d of bursts.children) d.style.opacity = 0;
+
+  // 1. Apresentamos o CVviews (0 – 5)
+  if (scene('s1', t, 0, 5.0, .01, .5)) {
+    rise($('s1k'), t, .2);
+    draw($('s1logo'), t, .6, 1.8);
+    pop($('s1name'), t, .9, .8, 0, .7);
+    words($('s1s'), t, 2.1, .06);
+    pop($('s1n1'), t, 2.6, .7, -6); pop($('s1n2'), t, 2.9, .7, 5);
+  }
+
+  // 2. Anexa e pede (4.8 – 12.4)
+  if (scene('s2', t, 4.8, 12.4)) {
+    words($('s2h'), t, 5.0, .07);
+    pop($('s2c'), t, 5.3, .7, 0, .85);
+    // a Ana arrasta o PDF para a caixa
+    const k = eio(prog(t, 6.6, 7.8));
+    const chip = $('s2chip');
+    chip.style.opacity = clamp(prog(t, 6.2, 6.5));
+    chip.style.transform = `translate(${lerp(1100, 0, k)}px, ${lerp(760, 430, k)}px) scale(${lerp(1, .82, k)}) rotate(${lerp(6, 0, k)}deg)`;
+    type($('s2typed'), 'Revê o meu CV para Product Designer', t, 8.2, 10.2, 'Pergunta ao Leo…');
+    const send = $('s2c').querySelector('.send');
+    send.style.transform = `scale(${t > 10.9 && t < 11.15 ? .86 : 1})`;
+    if (t > 10.95) burst(t, 10.95, 1503, 612);
+  }
+
+  // 3. A revisão (12.2 – 19.8)
+  if (scene('s3', t, 12.2, 19.8)) {
+    pop($('s3sheet'), t, 12.3, .8, -1.5, .85);
+    for (const [id, a] of [['s3k1', 13.6], ['s3k2', 15.0]]) $(id).style.transform = `scaleX(${eio(prog(t, a, a + .5))})`;
+    pop($('s3s1'), t, 14.0, .6, -3); pop($('s3s2'), t, 15.4, .6, 2);
+    const sc = $('s3score'); rise(sc, t, 13.0);
+    const v = Math.round(lerp(0, 82, eio(prog(t, 13.3, 16.2))));
+    $('s3num').textContent = v;
+    $('s3fill').setAttribute('stroke-dasharray', `${(v / 100) * 301.6} 301.6`);
+    $('s3fill').style.stroke = v < 50 ? '#e0664f' : v < 75 ? '#d9a33b' : '#3fae74';
+    words($('s3cap'), t, 16.6, .06);
+  }
+
+  // 4. O trabalho de casa (19.6 – 27.0)
+  if (scene('s4', t, 19.6, 27.0)) {
+    words($('s4h'), t, 19.8, .07);
+    pop($('s4doc'), t, 20.4, .7, -5);
+    pop($('s4c'), t, 20.7, .7, 0, .85);
+    type($('s4typed'), 'faz', t, 21.9, 22.4, 'Pergunta ao Leo…');
+    if (t > 22.75) burst(t, 22.75, 1652, 348);
+    rise($('s4ans'), t, 23.0, .7);
+    words($('s4a1'), t, 23.4, .07, '.wd');
+    words($('s4a2'), t, 24.9, .07, '.wd');
+  }
+
+  // 5. Tudo num só sítio (26.8 – 31.8)
+  if (scene('s5', t, 26.8, 31.8)) {
+    words($('s5h'), t, 27.0, .08);
+    ['n1', 'n2', 'n3', 'n4', 'n5', 'n6'].forEach((id, i) => pop($(id), t, 27.4 + i * .17, .7, [-4, 3, -2, 5, 2, -3][i] + Math.sin(t * 1.4 + i) * .8));
+  }
+
+  // 6. Final (31.6 – 36)
+  if (scene('s6', t, 31.6, DURATION, .5, .01)) {
+    draw($('s6logo'), t, 31.9, 33.0);
+    pop($('s6t').querySelector('.title'), t, 32.2, .8, 0, .7);
+    words($('s6s'), t, 33.0, .07);
+    pop($('s6u'), t, 33.8, .7, 0, .6);
+  }
+
+  // Cursores: cada um com os seus trajetos, um por cena.
+  cursors('cL', t, [[[[1.4, 1500, 120], [2.6, 1440, 380], [4.6, 1480, 400]], [1.4, 4.8]], [[[12.6, 1700, 160], [13.6, 700, 360], [15.0, 640, 590], [16.0, 820, 640], [19.4, 900, 700]], [12.6, 19.5]]]);
+  cursors('cA', t, [[[[5.6, 1700, 950], [6.4, 1500, 820], [7.8, 470, 520], [8.1, 900, 640], [10.5, 900, 640], [10.9, 1515, 625], [12.2, 1560, 700]], [5.6, 12.3]], [[[27.6, 200, 950], [29.4, 420, 560], [31.6, 560, 620]], [27.6, 31.6]]]);
+  cursors('cR', t, [[[[20.6, 300, 900], [21.4, 520, 600], [22.4, 1640, 360], [22.8, 1660, 380], [26.6, 1720, 520]], [20.6, 26.8]], [[[27.8, 1800, 980], [29.6, 1530, 960], [31.6, 1500, 940]], [27.8, 31.6]]]);
+  cursors('cM', t, [[[[28.0, 1800, 200], [29.8, 1700, 660], [31.6, 1680, 680]], [28.0, 31.6]]]);
+}
+
+window.render = render;
+window.DURATION = DURATION;
+
+const params = new URLSearchParams(location.search);
+if (!params.has('capture')) {
+  const fit = () => { const s = Math.min(innerWidth / 1920, innerHeight / 1080); $('stage').style.transform = `scale(${s})`; };
+  addEventListener('resize', fit); fit();
+  document.fonts.ready.then(() => {
+    if (params.has('t')) return render(+params.get('t'));
+    const start = performance.now();
+    const loop = (now) => { render(((now - start) / 1000) % DURATION); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  });
+}
+</script>
+</body>
+</html>

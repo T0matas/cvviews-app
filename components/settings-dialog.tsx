@@ -22,7 +22,7 @@ export type Settings = {
   /** O tema: o do sistema, ou claro/escuro fixo. */
   theme: 'system' | 'light' | 'dark';
   /** A língua das respostas do Leo. */
-  lang: 'pt-PT' | 'pt-BR' | 'en';
+  lang: 'pt-PT' | 'en';
 };
 
 export const DEFAULT_SETTINGS: Settings = { displayName: '', defaultMode: 'recrutador', web: true, enterToSend: true, voiceLang: 'pt', autoSendVoice: false, memory: true, theme: 'system', lang: 'pt-PT' };
@@ -153,7 +153,7 @@ export default function SettingsDialog({ settings, onChange, user, conversationC
                   </Line>
                 </div>
                 <Label>Língua das respostas</Label>
-                <Choices label="Língua das respostas" value={settings.lang} onChange={(v) => set('lang', v)} options={[{ id: 'pt-PT', label: 'Portugal', icon: Languages }, { id: 'pt-BR', label: 'Brasil', icon: Languages }, { id: 'en', label: 'English', icon: Languages }]} />
+                <Choices label="Língua das respostas" value={settings.lang} onChange={(v) => set('lang', v)} options={[{ id: 'pt-PT', label: 'Portugal', icon: Languages }, { id: 'en', label: 'English', icon: Languages }]} />
               </>
             )}
 

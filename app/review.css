@@ -591,3 +591,19 @@ ul.notes { list-style: none; padding-left: 0; }
   .idea { border-color: var(--line); }
   .idea:hover { border-color: var(--line-2); }
 }
+
+/* ---- Texto a aparecer: cada palavra nova entra a desfocar e a subir um pouco ---- */
+.prose.is-revealing > * { animation: block-in .4s var(--ease) both; }
+@keyframes block-in { from { opacity: 0; transform: translateY(4px); } }
+.prose .w { display: inline; animation: word-in .55s var(--ease) both; }
+@keyframes word-in { from { opacity: 0; filter: blur(4px); } 40% { opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .prose .w { animation: none; } }
+
+/* PC: o modo à direita dentro da caixa, ao lado do microfone, discreto ("Recrutador ˅"). */
+@media (min-width: 821px) {
+  .composer-row .mode-picker.in-composer { order: 1; margin: 0 2px calc((var(--ch) - 32px) / 2) 0; }
+  .in-composer .meta-btn { gap: 4px; padding: 0 8px 0 10px; color: var(--ink-3); background: transparent; }
+  .in-composer .meta-btn svg { color: var(--ink-3); }
+  .in-composer .mode-menu { top: auto; bottom: 40px; left: auto; right: 0; transform-origin: bottom right; }
+  .welcome .in-composer .mode-menu { top: 40px; bottom: auto; transform-origin: top right; }
+}

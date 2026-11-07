@@ -1,8 +1,22 @@
 import { Fragment, type ReactNode } from 'react';
 
+// Enquanto a resposta aparece, cada palavra vem num <span class="w"> que entra a desfocar (ver .prose .w).
+// As palavras já mostradas mantêm a mesma posição, por isso o React não as recria e só as novas animam.
+let REVEAL = false;
+
 /** Renderizador de Markdown pequeno e seguro (sem HTML bruto) para as respostas do assistente. */
-export default function Markdown({ text }: { text: string }) {
-  return <>{parseBlocks(text)}</>;
+export default function Markdown({ text, reveal = false }: { text: string; reveal?: boolean }) {
+  REVEAL = reveal;
+  try {
+    return <>{parseBlocks(text)}</>;
+  } finally {
+    REVEAL = false;
+  }
+}
+
+function words(text: string, key: number): ReactNode {
+  if (!REVEAL) return text;
+  return <Fragment key={`t${key}`}>{text.split(/(\s+)/).map((part, n) => (part && !/^\s+$/.test(part) ? <span className="w" key={n}>{part}</span> : part))}</Fragment>;
 }
 
 function parseBlocks(text: string): ReactNode[] {
@@ -179,7 +193,7 @@ function inline(text: string): ReactNode[] {
   let last = 0;
   for (const match of text.matchAll(pattern)) {
     const index = match.index ?? 0;
-    if (index > last) out.push(text.slice(last, index));
+    if (index > last) out.push(words(text.slice(last, index), out.length));
     const token = match[0];
     const key = out.length;
     if (token.startsWith('`')) out.push(<code key={key}>{token.slice(1, -1)}</code>);
@@ -188,6 +202,6 @@ function inline(text: string): ReactNode[] {
     else out.push(<em key={key}>{inline(token.slice(1, -1))}</em>);
     last = index + token.length;
   }
-  if (last < text.length) out.push(text.slice(last));
+  if (last < text.length) out.push(words(text.slice(last), out.length));
   return out;
 }

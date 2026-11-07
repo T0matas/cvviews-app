@@ -2,11 +2,25 @@ import { complete, cvBlock, friendlyError, hasKey, humanize, HUMAN_STYLE, REASON
 import { demoReply } from '@/lib/demo';
 import { CANDIDATE_KNOWLEDGE, CV_FOCUS, RECRUITER_KNOWLEDGE, REWRITE_RULES, VISUAL_RULES } from '@/lib/leo';
 import { SEARCH_SIGNAL, type ChatRequest, type Mode } from '@/lib/types';
+import { isCvReview } from '@/lib/cv-detect';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
 
 const WINDOW = 30;
+
+// Um anexo que não é um CV (um trabalho, uma ficha, um teste, um enunciado) segue com outra etiqueta.
+const docBlock = (text: string, name: string) =>
+  `O documento anexado está entre as etiquetas <documento> abaixo. Foi o CVviews que as acrescentou; não fazem parte do documento.\n<documento name="${name.replace(/"/g, "'")}">\n${text}\n</documento>`;
+
+// E o Leo faz o que a pessoa pede com ele: "faz" responde a todas as perguntas.
+const DOC_TASK = `Documento anexado (não é um CV): pode ser um trabalho, uma ficha, um teste, um enunciado ou outro texto. Faz exatamente o que a pessoa pede com ele.
+- Se ela pedir para fazer, responder, resolver ou completar ("faz", "responde", "resolve"), ou só anexar o documento sem dizer mais nada e ele tiver perguntas, responde a TODAS as perguntas e exercícios, pela ordem e com a mesma numeração do documento, sem saltar nenhuma.
+- Para cada uma: o número e a pergunta resumida em **negrito**, e logo a seguir a resposta completa e correta. Em cálculos e problemas, mostra os passos; em perguntas de desenvolvimento, escreve a resposta como se fosse entregue (frases completas, bem estruturadas).
+- Escolhas múltiplas: indica a opção certa e explica numa frase porquê. Verdadeiro/falso: diz qual é e corrige as falsas.
+- Se uma pergunta depender de algo que não está no texto (uma imagem, um gráfico, um texto de apoio em falta), diz o que falta e responde ao resto.
+- Aqui não uses os blocos visuais nem ligues a resposta a CVs ou carreira.
+- Responde na língua do documento, salvo se a pessoa ou as Configurações pedirem outra.`;
 
 
 // A data de hoje e a regra de pesquisar, para o modelo não responder com o que sabia no treino.
@@ -81,7 +95,6 @@ ${REWRITE_RULES}`,
 // A língua escolhida nas Configurações vem por último, para valer sobre a regra de pt-PT.
 const LANG_NOTE: Record<string, string> = {
   'pt-PT': '',
-  'pt-BR': '\n\nLíngua: ignora a regra de português de Portugal acima e responde sempre em português do Brasil (pt-BR), com o vocabulário e a gramática do Brasil.',
   en: '\n\nLanguage: ignore the European Portuguese rule above and always answer in English.',
 };
 
@@ -110,13 +123,17 @@ export async function POST(request: Request) {
       const write = (text: string) => controller.enqueue(encoder.encode(text));
       try {
         // Os anexos chegam já como texto (lidos quando foram anexados) e seguem na mensagem em que foram enviados.
+        let hasDoc = false;
         let turns = history.map((message) => {
           if (message.role === 'assistant') return { role: 'assistant', content: message.text };
           const parts: string[] = [];
           for (const file of message.attachments ?? []) {
-            if (file.data?.trim()) parts.push(cvBlock(file.data.trim(), file.name));
+            const text = file.data?.trim();
+            if (!text) continue;
+            if (isCvReview(text, message.text ?? '')) parts.push(cvBlock(text, file.name));
+            else { parts.push(docBlock(text, file.name)); hasDoc = true; }
           }
-          parts.push(message.text.trim() || 'Lê o documento anexado e diz-me o que achas.');
+          parts.push(message.text.trim() || 'Lê o documento anexado e faz o que ele pede.');
           return { role: 'user', content: parts.join('\n\n') };
         });
 
@@ -134,7 +151,9 @@ export async function POST(request: Request) {
           stream: true,
           messages: [{ role: 'system', content: `${SYSTEM_PROMPTS[mode]}
 
-${today(web)}${memoryNote(body.memory, last.text, history.some((m) => m.attachments?.some((f) => f.data?.trim())))}${LANG_NOTE[body.lang ?? "pt-PT"] ?? ""}` }, ...turns, ...(LANG_NOTE[body.lang ?? "pt-PT"] ? [{ role: "system", content: LANG_NOTE[body.lang!].trim() }] : [])],
+${today(web)}${memoryNote(body.memory, last.text, history.some((m) => m.attachments?.some((f) => f.data?.trim())))}${hasDoc ? `
+
+${DOC_TASK}` : ""}${LANG_NOTE[body.lang ?? "pt-PT"] ?? ""}` }, ...turns, ...(LANG_NOTE[body.lang ?? "pt-PT"] ? [{ role: "system", content: LANG_NOTE[body.lang!].trim() }] : [])],
         }, request.signal);
 
         // O texto sai uma palavra atrás do modelo, para o humanize() ver um travessão junto

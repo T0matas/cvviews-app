@@ -39,7 +39,7 @@ export default function SmoothProse({ text, streaming }: { text: string; streami
 
   return (
     <div className={`prose${animating || streaming ? ' is-revealing' : ''}`}>
-      <Markdown text={text.slice(0, shown)} />
+      <Markdown text={text.slice(0, shown)} reveal={animating || streaming} />
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { type Rating, sendFeedback, trainingJsonl } from '@/lib/feedback';
 import { clearRemote, EMPTY_MEMORY, isEmpty, loadLocal, loadRemote, MAX_CV, type Memory, saveLocal, saveRemote } from '@/lib/memory';
 import ReviewView, { type CvSource } from './review-view';
 import { readImage, readOriginal, readPdf, readWord, toBase64 } from '@/lib/read-file';
+import { isCvReview } from '@/lib/cv-detect';
 import { type FullCv, type Review, reviewSummary } from '@/lib/review';
 import { useRecorder } from '@/lib/use-recorder';
 import { SEARCH_SIGNAL, type Attachment, type ChatRequest, type Conversation, type Message, type Mode } from '@/lib/types';
@@ -153,6 +154,7 @@ export default function ChatApp() {
   useEffect(() => {
     try {
       const stored = { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') } as Settings;
+      if (stored.lang !== 'en') stored.lang = 'pt-PT'; // o português do Brasil deixou de existir
       setSettings(stored);
       setNewChatMode(stored.defaultMode);
     } catch { /* armazenamento indisponível */ }
@@ -442,13 +444,16 @@ export default function ChatApp() {
     }
 
     const files = pending;
-    // O CV anexado fica na memória, para as próximas conversas.
-    const cvFile = files.find((f) => f.data.trim().length >= 200);
+    const allText = files.map((f) => f.data).join('\n\n');
+    // Um CV anexado é revisto como no site (o texto escrito com ele conta como a vaga). Outro documento
+    // (um trabalho, uma ficha, um teste) vai para o Leo, que faz o que a pessoa pede: "faz" responde às perguntas.
+    const review = files.some((f) => f.data.trim().length >= 40) && isCvReview(allText, text);
+    // Só um CV fica na memória, para as próximas conversas.
+    const cvFile = review ? files.find((f) => f.data.trim().length >= 200) : undefined;
     if (settings.memory && cvFile) changeMemory({ ...memoryRef.current, cv: { name: cvFile.name, text: cvFile.data.trim().slice(0, MAX_CV) } });
     setDraft('');
     setPending([]);
-    // Um CV anexado (seja que ficheiro for) é revisto como no site; o texto escrito com ele conta como a vaga.
-    if (files.some((f) => f.data.trim().length >= 40)) void reviewCv(conversationId!, history, files, text);
+    if (review) void reviewCv(conversationId!, history, files, text);
     else void streamReply(conversationId!, history, mode);
   }
 
@@ -564,9 +569,9 @@ export default function ChatApp() {
     if (event.dataTransfer.files.length) void addFiles(event.dataTransfer.files);
   };
 
-  // O modo (Recrutador/Candidato). No ecrã inicial do PC fica dentro da caixa, ao lado do "+";
-  // no resto, por baixo da caixa.
-  const modeInComposer = wide && !messages.length;
+  // O modo (Recrutador/Candidato). No PC fica dentro da caixa, à direita, ao lado do microfone;
+  // no telemóvel, por baixo da caixa.
+  const modeInComposer = wide;
   const modePicker = (extra = '') => (
     <div className={`mode-picker ${extra}`}>
       <button type="button" className="meta-btn" onClick={(e) => { e.stopPropagation(); setModeMenuOpen((o) => !o); }} aria-haspopup="menu" aria-expanded={modeMenuOpen} title="Mudar o modo">
