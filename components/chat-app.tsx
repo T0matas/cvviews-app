@@ -8,6 +8,7 @@ import {
   Square, SquarePen, Trash2, UserRound, UsersRound, X,
 } from 'lucide-react';
 import AuthDialog from './auth-dialog';
+import Onboarding from './onboarding';
 import LeoWriting from './leo-writing';
 import Logo from './logo';
 import SmoothProse from './smooth-prose';
@@ -119,6 +120,10 @@ export default function ChatApp() {
   const [dragging, setDragging] = useState(false);
   const [notice, setNotice] = useState('');
   const [hydrated, setHydrated] = useState(false);
+  // No telemóvel, quem não tem sessão vê primeiro o ecrã de entrada (até entrar ou saltar).
+  const [skipped, setSkipped] = useState<boolean | null>(null);
+  useEffect(() => { try { setSkipped(localStorage.getItem('cvviews-skip-login') === '1'); } catch { setSkipped(true); } }, []);
+  const skipLogin = () => { setSkipped(true); try { localStorage.setItem('cvviews-skip-login', '1'); } catch { /* armazenamento indisponível */ } };
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -731,6 +736,7 @@ export default function ChatApp() {
         {notice && <div className="toast" role="status">{notice}</div>}
       </main>
 
+      {!wide && authReady && !user && skipped === false && <Onboarding onEmail={() => setDialog('auth')} onSkip={skipLogin} />}
       {dialog === 'auth' && <AuthDialog onClose={() => setDialog(null)} />}
       {dialog === 'settings' && (
         <SettingsDialog

@@ -149,6 +149,8 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
   const marked = markedCv(review, cvText);
   const visual = Boolean(source?.pdf || source?.images?.length);
   const [shots, setShots] = useState<string[] | null>(null);
+  // O CV corrigido em cima do próprio ficheiro: as mesmas páginas, só com as linhas trocadas.
+  const [fixedShots, setFixedShots] = useState<string[] | null>(null);
   const [step, setStep] = useState('A preparar o teu CV');
   const [drawFailed, setDrawFailed] = useState(!visual);
   const started = useRef(false);
@@ -164,6 +166,7 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
         const { drawCorrections, styleFor } = await import('@/lib/markup.js');
         const result = await drawCorrections({ review, images: source?.images, pdf: source?.pdf, onStep: setStep });
         setLook(result.layout ? { layout: result.layout, styleFor } : null);
+        if (result.fixed > 0) setFixedShots(result.corrected.map((c) => c.toDataURL('image/jpeg', 0.92)));
         if (!result.marks) throw new Error('nenhuma citação encontrada na página');
         setShots(result.pages.map((c) => c.toDataURL('image/jpeg', 0.9)));
       } catch (err) {
@@ -221,7 +224,20 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
       )}
 
       <h4 className="rv-h">O teu CV, já corrigido</h4>
-      {ready ? (
+      {fixedShots ? (
+        <>
+          <p className="rv-p">O teu CV tal como está, com a mesma estrutura, imagens e cores: só as frases que a revisão riscou foram trocadas pelas novas. Onde vires um <span className="cvdoc-blank">[X]</span>, põe o teu número.</p>
+          <div className="cvshot">
+            {fixedShots.map((src, i) => <figure className="cvshot-page" key={i}><img src={src} alt={`Página ${i + 1} do teu CV, já corrigido`} /></figure>)}
+          </div>
+          <p className="cvmark-act">
+            <button type="button" className="text-act" onClick={() => savePdf((m) => m.imagesPdf(fixedShots), `${base} - corrigido`)}><FileDown size={14} />Descarregar em PDF</button>
+            {tidy && <CopyButton text={cvDocText(tidy)} label="Copiar o texto" />}
+          </p>
+        </>
+      ) : visual && !drawFailed && !shots ? (
+        <div className="cvshot-wait"><span className="cvshot-dot" aria-hidden="true" />A escrever o teu CV corrigido…</div>
+      ) : ready ? (
         <>
           <p className="rv-p">{style ? 'O mesmo desenho do teu CV, com tudo aplicado e cada secção no sítio certo.' : 'Tudo aplicado e arrumado: cada secção no sítio certo, pronto a enviar.'} Onde vires um <span className="cvdoc-blank">[X]</span>, põe o teu número.</p>
           {style ? <CvStyled f={tidy} style={style} /> : <article className="cvdoc"><CvDoc f={tidy} /></article>}

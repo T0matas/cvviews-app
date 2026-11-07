@@ -56,6 +56,14 @@ export function drawCorrections(input: {
   /** O PDF original em base64. */
   pdf?: string | null;
   onStep?: (step: string) => void;
-}): Promise<{ pages: HTMLCanvasElement[]; marks: number; layout: CvLayout | null }>;
+}): Promise<{
+  pages: HTMLCanvasElement[];
+  marks: number;
+  layout: CvLayout | null;
+  /** O CV corrigido: as mesmas páginas, com cada linha nova escrita no lugar da antiga. */
+  corrected: HTMLCanvasElement[];
+  /** Quantas linhas foram trocadas. */
+  fixed: number;
+}>;
 
 export function styleFor(full: FullCv, layout: CvLayout | null, text?: string): CvStyle | null;

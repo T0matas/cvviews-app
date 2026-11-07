@@ -325,3 +325,51 @@ ul.notes { list-style: none; padding-left: 0; }
 .cvx-bar-row b { position: absolute; inset: 0 auto 0 0; background: var(--cvx-heading); }
 .cvx.side-dark .cvx-side .cvx-bar-row i.track { background: rgb(255 255 255 / .18); }
 .cvx.side-dark .cvx-side .cvx-bar-row b { background: #fff; }
+
+/* ---- Ecrã de entrada no telemóvel (quem ainda não tem sessão) ---- */
+.onboard { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; padding: calc(14px + env(safe-area-inset-top)) 22px calc(18px + env(safe-area-inset-bottom)); color: #fff; background: #000; animation: fade .35s var(--ease); }
+.onboard-top { position: relative; display: flex; align-items: center; justify-content: center; height: 44px; }
+.onboard-logo { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #fff; color: #000; }
+.onboard-logo .logo { width: 24px; height: 15px; stroke-width: 2.8; }
+.onboard-skip { position: absolute; right: 0; height: 36px; padding: 0 14px; border-radius: 999px; color: rgb(255 255 255 / .62); font-size: 15px; font-weight: 500; transition: color .15s, background .15s; }
+.onboard-skip:active { color: #fff; background: rgb(255 255 255 / .1); }
+.onboard-art { flex: 1; min-height: 0; width: 100%; }
+.onboard-copy { text-align: center; margin: 6px 0 26px; animation: rise .7s .1s var(--ease) both; }
+.onboard-copy h1 { margin: 0; font-size: 40px; font-weight: 600; letter-spacing: -1.2px; line-height: 1.1; }
+.onboard-copy p { margin: 10px 0 0; color: rgb(255 255 255 / .55); font-size: 16px; }
+.onboard-actions { display: flex; flex-direction: column; gap: 12px; animation: rise .7s .18s var(--ease) both; }
+.onboard-btn { display: flex; align-items: center; justify-content: center; gap: 10px; height: 54px; border-radius: 999px; color: #fff; background: #262626; font-size: 16px; font-weight: 600; transition: transform .15s var(--ease), opacity .15s; }
+.onboard-btn.is-light { color: #000; background: #fff; }
+.onboard-btn svg { width: 20px; height: 20px; flex: 0 0 auto; }
+.onboard-btn:active { transform: scale(.97); }
+.onboard-btn:disabled { opacity: .6; }
+.onboard-error { margin: 0; color: #ff8a80; font-size: 14px; text-align: center; }
+.onboard-legal { margin: 6px 12px 0; color: rgb(255 255 255 / .4); font-size: 12px; line-height: 1.5; text-align: center; }
+@media (min-width: 821px) { .onboard { display: none; } }
+
+/* ---- Portátil: o ecrã inicial cabe no ecrã, sem ficar gigante ---- */
+@media (min-width: 821px) {
+  :root { --rail-w: 72px; }
+  .rail { gap: 8px; padding-top: 20px; }
+  .rail-logo, .rail-logo-hover, .rail-btn { width: 44px; height: 44px; border-radius: 14px; }
+  .rail-logo { margin-bottom: 20px; }
+  .rail-logo .logo { width: 32px; height: 19px; }
+  .welcome { width: min(100%, 960px); justify-content: safe center; padding: clamp(16px, 4vh, 40px) 32px clamp(24px, 8vh, 96px); }
+  .mode-switch { margin-bottom: clamp(24px, 6vh, 56px); }
+  .mode-switch button { height: 38px; padding: 0 18px; font-size: 15px; }
+  .welcome .hello { gap: 12px; margin-bottom: clamp(20px, 4vh, 36px); }
+  .hello-name { font-size: 17px; }
+  .hello-logo { width: 32px; height: 19px; }
+  .hello h1 { font-size: clamp(30px, min(3.2vw, 5.6vh), 48px); letter-spacing: -1.2px; }
+  .welcome .composer-wrap { margin-bottom: clamp(24px, 5vh, 44px); }
+  .ideas { gap: 16px; }
+  .idea { min-height: clamp(128px, 19vh, 176px); padding: 20px 20px 18px; border-radius: 22px; }
+  .idea-icon { margin-bottom: clamp(12px, 2.4vh, 22px); }
+  .idea-icon svg { width: 20px; height: 20px; }
+  .idea strong { font-size: 15.5px; }
+  .idea small { font-size: 14px; }
+}
+@media (min-width: 821px) and (max-height: 580px) {
+  .idea small { display: none; }
+  .idea { min-height: 0; }
+}
