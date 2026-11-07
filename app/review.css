@@ -373,3 +373,51 @@ ul.notes { list-style: none; padding-left: 0; }
   .idea small { display: none; }
   .idea { min-height: 0; }
 }
+
+/* ---- Mais pequeno e mais cuidado: barra lateral e ecrã inicial ---- */
+.sidebar-top { padding: 0 0 16px 10px; }
+.brand-word { font-size: 19px; letter-spacing: -.4px; }
+.close-btn { width: 34px; height: 34px; border-radius: 10px; background: transparent; }
+.close-btn:hover { background: var(--bg-3); }
+.close-btn svg { width: 17px; height: 17px; }
+.side-row { gap: 11px; height: 42px; padding: 0 12px; border-radius: 12px; font-size: 14.5px; }
+.side-row svg { width: 18px; height: 18px; }
+.new-chat { color: var(--ink); background: var(--bg-2); }
+.new-chat:hover { background: var(--bg-3); }
+.search { margin-top: 2px; }
+.search input { font-size: 14.5px; }
+.history { margin-top: 10px; border-top: 0; }
+.history h3 { margin: 18px 12px 6px; font-size: 11px; letter-spacing: .08em; }
+.history-empty { margin: 16px 12px; font-size: 13px; line-height: 1.5; }
+.history-link { height: 36px; padding-left: 12px; font-size: 14px; }
+.history-item { border-radius: 10px; }
+.sidebar-footer { padding-top: 10px; }
+.signin-btn { height: 42px; border-radius: 12px; font-size: 14.5px; gap: 8px; }
+.signin-btn svg { width: 17px; height: 17px; }
+
+@media (min-width: 821px) {
+  :root { --sidebar-w: 256px; }
+  .sidebar { padding: 16px 10px calc(12px + env(safe-area-inset-bottom)); }
+  .sidebar > * { min-width: calc(var(--sidebar-w) - 21px); }
+
+  .welcome { width: min(100%, 800px); padding-bottom: clamp(24px, 10vh, 120px); }
+  .mode-switch { padding: 3px; margin-bottom: clamp(20px, 5vh, 44px); }
+  .mode-switch button { height: 32px; padding: 0 15px; font-size: 14px; }
+  .welcome .hello { gap: 10px; margin-bottom: clamp(18px, 3.4vh, 30px); }
+  .hello-name { gap: 9px; font-size: 15px; }
+  .hello-logo { width: 26px; height: 16px; }
+  .hello h1 { font-size: clamp(26px, min(2.5vw, 4.6vh), 36px); letter-spacing: -.9px; }
+  .welcome .composer-wrap { margin-bottom: clamp(18px, 4vh, 34px); }
+  .composer, .composer:focus-within { border-radius: 26px; }
+  .composer textarea { min-height: 52px; padding: 15px 6px 12px 6px; font-size: 15px; }
+  .composer-row .plus { margin: 0 0 7px 8px; }
+  .composer-row .mic-btn { margin: 0 0 7px; }
+  .composer-row .send-btn { width: 36px; height: 36px; margin: 0 8px 8px 4px; }
+  .ideas { gap: 12px; }
+  .idea { min-height: clamp(100px, 14vh, 128px); padding: 16px 16px 14px; border-radius: 18px; }
+  .idea-icon { margin-bottom: clamp(10px, 2vh, 18px); }
+  .idea-icon svg { width: 18px; height: 18px; }
+  .idea-text { gap: 4px; }
+  .idea strong { font-size: 14px; }
+  .idea small { font-size: 12.5px; line-height: 1.4; }
+}
