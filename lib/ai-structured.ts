@@ -1,6 +1,6 @@
 // Portado de cvviews-ofcsite/lib/ai.js e lib/schema.js: pedidos com resposta em JSON validado,
 // a língua do CV e os números que o modelo não pode inventar.
-import { ApiError, complete, humanize, REASONING } from './ai';
+import { ApiError, complete, humanize, MAIN_MODEL, REASONING, SMALL_MODEL } from './ai';
 import { isLorem, LOREM_WORDS } from './lorem';
 
 /* ---------------- Esquemas ---------------- */
@@ -78,7 +78,10 @@ export async function structured<T>(request: StructuredRequest): Promise<T> {
   // Up to three tries: a long answer (a whole CV) fails the check more often than a short one.
   for (let attempt = 1; ; attempt++) {
     try {
-      return await structuredOnce<T>(request);
+      // Depois de um JSON que falha a verificação, a tentativa seguinte vai ao modelo principal e a última ao de recurso:
+      // um modelo que se engana numa resposta raramente se engana nas duas.
+      const model = request.model ?? (attempt === 2 ? MAIN_MODEL : attempt === 3 ? SMALL_MODEL : undefined);
+      return await structuredOnce<T>({ ...request, model });
     } catch (error) {
       if (!isBadJson(error) || attempt >= 3) throw error;
       console.warn(`[structured] JSON failed the schema check, try ${attempt + 1} of 3`);

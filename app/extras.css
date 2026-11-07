@@ -160,13 +160,6 @@ img.avatar { object-fit: cover; border: 0; }
 .vx-check i { width: 20px; height: 20px; display: grid; place-items: center; flex: 0 0 auto; margin-top: 1px; border-radius: 50%; color: #fff; font-size: 12px; font-style: normal; font-weight: 700; }
 .vx-check li.ok i { background: var(--good); } .vx-check li.fix i { background: var(--mid); }
 
-/* Teste ATS, no fim da revisão */
-.ats { --good: #3fae74; --mid: #d9a33b; --low: #e0664f; display: grid; gap: 10px; margin-top: 6px; }
-.ats .vx { margin: 0; }
-.ats .vx-check strong { font-weight: 600; }
-.ats-text summary { cursor: pointer; color: var(--ink-2); font-size: 14px; }
-.ats-text pre { max-height: 320px; overflow: auto; margin: 8px 0 0; padding: 14px; border-radius: 12px; background: var(--tile); color: var(--ink-2); font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; }
-
 /* Candidaturas */
 .side-count { margin-left: auto; min-width: 22px; padding: 1px 7px; border-radius: 99px; color: var(--ink-2); background: var(--bg-3); font-size: 12px; text-align: center; }
 .dialog.apps { width: min(100%, 560px); display: flex; flex-direction: column; gap: 14px; --s-preparar: var(--ink-3); --s-enviada: #4f8de0; --s-entrevista: #d9a33b; --s-proposta: #3fae74; --s-recusada: #e0664f; }

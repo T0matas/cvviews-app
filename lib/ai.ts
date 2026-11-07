@@ -98,6 +98,8 @@ export class ApiError extends Error {
 const FALLBACK_MODEL = PROVIDER.name === 'Groq' ? process.env.GROQ_FALLBACK_MODEL || 'openai/gpt-oss-20b' : null;
 // Para tarefas pequenas e frequentes (como a memória), o modelo mais pequeno: poupa o limite por minuto do principal.
 export const SMALL_MODEL = FALLBACK_MODEL;
+// O modelo principal, para quando uma tentativa tem de ir mesmo a ele.
+export const MAIN_MODEL = PROVIDER.model;
 const MAX_WAIT_S = 25;
 const isRateLimit = (error: unknown) => error instanceof ApiError && (error.status === 429 || error.status === 413 || /rate_limit_exceeded/.test(error.message));
 function retryAfter(error: ApiError) {
