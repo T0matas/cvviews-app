@@ -3,7 +3,7 @@
 import { type ChangeEvent, type DragEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import {
-  ArrowDown, ArrowUp, ArrowUpRight, BriefcaseBusiness, Check, ChevronDown, ChevronRight, Copy, FileText, Globe, Image as ImageIcon, ListChecks, Loader2, LogIn, LogOut, MessageSquareText,
+  ArrowDown, ArrowUp, BriefcaseBusiness, Check, ChevronDown, ChevronRight, Copy, FileText, Globe, Image as ImageIcon, ListChecks, Loader2, LogIn, LogOut, MessageSquareText,
   Mic, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings as Gear, Settings2,
   Square, SquarePen, Trash2, UserRound, UsersRound, X,
 } from 'lucide-react';
@@ -669,33 +669,23 @@ export default function ChatApp() {
 
         <div className="thread" ref={scrollRef} onScroll={(e) => { const el = e.currentTarget; setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80); }}>
           {!messages.length && wide ? (
-            // PC: uma coluna alinhada à esquerda, com a saudação, o modo, a caixa e as sugestões numa lista.
+            // PC: simples e ao centro: o modo, a saudação, a caixa de mensagem e atalhos pequenos.
             <div className="desk">
-              <div className="desk-glow" aria-hidden="true" />
               <div className="desk-col">
-                <header className="desk-head">
-                  <div className="desk-hello">
-                    <p><Logo className="desk-logo" /><span>{greeting}{firstName ? `, ${firstName}` : ''}</span></p>
-                    <h1>O que vamos fazer hoje?</h1>
-                  </div>
-                  <div className="desk-tabs" role="radiogroup" aria-label="Modo">
-                    {(Object.keys(MODES) as Mode[]).map((key) => (
-                      <button key={key} role="radio" aria-checked={mode === key} className={mode === key ? 'is-on' : ''} onClick={() => changeMode(key)}>{MODES[key].label}</button>
-                    ))}
-                  </div>
-                </header>
+                <div className="desk-modes" role="radiogroup" aria-label="Modo">
+                  {(Object.keys(MODES) as Mode[]).map((key) => (
+                    <button key={key} role="radio" aria-checked={mode === key} className={mode === key ? 'is-on' : ''} onClick={() => changeMode(key)}>{MODES[key].label}</button>
+                  ))}
+                </div>
+                <h1 className="desk-hello"><Logo className="desk-logo" />{greeting}{firstName ? `, ${firstName}` : ''}</h1>
                 {composer}
-                <section className="desk-list" aria-label="Sugestões">
-                  <h2>{mode === 'recrutador' ? 'Para recrutar' : 'Para a tua candidatura'}</h2>
-                  {SUGGESTIONS[mode].map(({ icon: Icon, title, hint, prompt }, i) => (
-                    <button key={title} className="desk-row" style={{ animationDelay: `${0.12 + i * 0.05}s` }} onClick={() => { if (prompt.startsWith('Vou anexar')) { setDraft(prompt); fileRef.current?.click(); } else send(prompt); }}>
-                      <span className="desk-row-icon"><Icon size={18} strokeWidth={1.7} /></span>
-                      <span className="desk-row-text"><strong>{title}</strong><small>{hint}</small></span>
-                      <ArrowUpRight size={17} className="desk-row-go" />
+                <div className="desk-chips">
+                  {SUGGESTIONS[mode].map(({ icon: Icon, title, prompt }) => (
+                    <button key={title} className="desk-chip" onClick={() => { if (prompt.startsWith('Vou anexar')) { setDraft(prompt); fileRef.current?.click(); } else send(prompt); }}>
+                      <Icon size={15} strokeWidth={1.8} />{title}
                     </button>
                   ))}
-                </section>
-                <p className="desk-drop"><Paperclip size={14} /> Arrasta um CV para qualquer sítio da página · PDF, Word ou fotografia</p>
+                </div>
               </div>
             </div>
           ) : !messages.length ? (
