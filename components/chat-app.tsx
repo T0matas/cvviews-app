@@ -432,12 +432,6 @@ export default function ChatApp() {
 
   const userName = settings.displayName.trim() || user?.displayName || '';
   const firstName = userName.split(/\s+/)[0];
-  // "Bom dia", "Boa tarde" ou "Boa noite", pela hora de quem usa (só no browser, para não divergir do servidor).
-  const [greeting, setGreeting] = useState('Olá');
-  useEffect(() => {
-    const h = new Date().getHours();
-    setGreeting(h >= 6 && h < 13 ? 'Bom dia' : h >= 13 && h < 20 ? 'Boa tarde' : 'Boa noite');
-  }, []);
   const initials = (userName || user?.email || '').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
   const canSend = (draft.trim().length > 0 || pending.length > 0) && !isStreaming && !pending.some((f) => f.reading);
 
@@ -668,27 +662,7 @@ export default function ChatApp() {
         </header>
 
         <div className="thread" ref={scrollRef} onScroll={(e) => { const el = e.currentTarget; setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80); }}>
-          {!messages.length && wide ? (
-            // PC: simples e ao centro: o modo, a saudação, a caixa de mensagem e atalhos pequenos.
-            <div className="desk">
-              <div className="desk-col">
-                <div className="desk-modes" role="radiogroup" aria-label="Modo">
-                  {(Object.keys(MODES) as Mode[]).map((key) => (
-                    <button key={key} role="radio" aria-checked={mode === key} className={mode === key ? 'is-on' : ''} onClick={() => changeMode(key)}>{MODES[key].label}</button>
-                  ))}
-                </div>
-                <h1 className="desk-hello"><Logo className="desk-logo" />{greeting}{firstName ? `, ${firstName}` : ''}</h1>
-                {composer}
-                <div className="desk-chips">
-                  {SUGGESTIONS[mode].map(({ icon: Icon, title, prompt }) => (
-                    <button key={title} className="desk-chip" onClick={() => { if (prompt.startsWith('Vou anexar')) { setDraft(prompt); fileRef.current?.click(); } else send(prompt); }}>
-                      <Icon size={15} strokeWidth={1.8} />{title}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : !messages.length ? (
+          {!messages.length ? (
             <div className="welcome">
               <div className="mode-switch" role="radiogroup" aria-label="Modo">
                 {(Object.keys(MODES) as Mode[]).map((key) => (
