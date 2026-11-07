@@ -59,41 +59,71 @@ function Dashes() {
     const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let seed = 11;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    const TILT = -0.32;
-    const COUNT = 360;
+    const CLOUD_TILT = -0.32; // a nuvem solta
+    const TILT = -0.1; // a folha formada, só um pouco inclinada
+    const COUNT = 380;
 
-    // A folha: um título, uma linha mais curta por baixo e parágrafos, inclinada como na nuvem.
-    const rows: { y: number; len: number; heavy: boolean }[] = [];
-    rows.push({ y: -0.42, len: 0.62, heavy: true }, { y: -0.34, len: 0.38, heavy: false });
-    for (let y = -0.2, n = 0; y <= 0.44; y += 0.06, n++) {
-      const end = n % 4 === 3; // a última linha de cada parágrafo é mais curta
-      if (n % 4 === 0 && n) y += 0.03;
-      rows.push({ y, len: end ? 0.45 + rnd() * 0.2 : 0.86 + rnd() * 0.1, heavy: false });
+    // A folha de CV, em coordenadas da página (largura 1, altura 1.3, centro em 0,0): o contorno tracejado,
+    // a foto, o nome e o cargo, uma coluna lateral com competências e a coluna principal com secções e marcadores.
+    type Seg = { x0: number; y0: number; x1: number; y1: number; w: number; fill: number; density: number };
+    const segs: Seg[] = [];
+    const line = (x0: number, y0: number, x1: number, y1: number, w = 1.4, fill = 0.92, density = 1) => segs.push({ x0, y0, x1, y1, w, fill, density });
+    const W = 0.5, H = 0.65;
+    // contorno da folha, tracejado
+    line(-W, -H, W, -H, 1.1, 0.5, 0.55); line(W, -H, W, H, 1.1, 0.5, 0.55); line(W, H, -W, H, 1.1, 0.5, 0.55); line(-W, H, -W, -H, 1.1, 0.5, 0.55);
+    // foto: um círculo
+    const cx = -0.3, cy = -0.47, r = 0.1;
+    for (let i = 0; i < 16; i++) { const a0 = (i / 16) * Math.PI * 2, a1 = ((i + 1) / 16) * Math.PI * 2; line(cx + Math.cos(a0) * r, cy + Math.sin(a0) * r, cx + Math.cos(a1) * r, cy + Math.sin(a1) * r, 1.5, 0.85, 1.4); }
+    // nome e cargo
+    line(-0.13, -0.51, 0.36, -0.51, 3.2, 0.96, 1.3);
+    line(-0.13, -0.43, 0.16, -0.43, 1.4);
+    line(-0.42, -0.31, 0.42, -0.31, 1, 0.96, 0.6);
+    // coluna lateral: título, barras de competências, título, linhas curtas
+    line(-0.42, -0.23, -0.24, -0.23, 2.4);
+    for (const [y, len] of [[-0.15, 0.24], [-0.09, 0.18], [-0.03, 0.21], [0.03, 0.14]] as const) { line(-0.42, y, -0.42 + 0.26, y, 1, 0.96, 0.5); line(-0.42, y, -0.42 + len, y, 2.6); }
+    line(-0.42, 0.14, -0.26, 0.14, 2.4);
+    for (const [y, len] of [[0.21, 0.24], [0.27, 0.2], [0.33, 0.25], [0.39, 0.17], [0.45, 0.22]] as const) line(-0.42, y, -0.42 + len, y, 1.3);
+    // coluna principal: perfil (parágrafo) e experiência (marcadores)
+    line(-0.04, -0.23, 0.2, -0.23, 2.4);
+    for (const [y, len] of [[-0.16, 0.46], [-0.1, 0.44], [-0.04, 0.46], [0.02, 0.3]] as const) line(-0.04, y, -0.04 + len, y, 1.3);
+    line(-0.04, 0.11, 0.24, 0.11, 2.4);
+    for (const [y, len] of [[0.18, 0.4], [0.24, 0.36], [0.31, 0.42], [0.37, 0.3], [0.44, 0.38], [0.5, 0.26]] as const) {
+      line(-0.04, y, -0.025, y, 2.6, 1, 2.5); // o marcador
+      line(0.0, y, len, y, 1.3);
     }
-    const total = rows.reduce((s, r) => s + r.len * (r.heavy ? 1.6 : 1), 0);
-    const slots: { u: number; v: number; len: number }[] = [];
-    for (const r of rows) {
-      const k = Math.max(2, Math.round((COUNT * r.len * (r.heavy ? 1.6 : 1)) / total));
-      for (let i = 0; i < k; i++) slots.push({ u: -0.5 + (r.len * (i + 0.5)) / k, v: r.y, len: (r.len / k) * 0.78 });
+    // os traços dividem-se pelos segmentos, conforme o comprimento
+    const segLen = (s: Seg) => Math.hypot(s.x1 - s.x0, s.y1 - s.y0);
+    const weight = segs.reduce((sum, s) => sum + segLen(s) * s.density, 0);
+    const slots: { u: number; v: number; len: number; ang: number; w: number }[] = [];
+    for (const s of segs) {
+      const k = Math.max(1, Math.round((COUNT * segLen(s) * s.density) / weight));
+      const ang = Math.atan2(s.y1 - s.y0, s.x1 - s.x0);
+      for (let i = 0; i < k; i++) {
+        const t = (i + 0.5) / k;
+        slots.push({ u: s.x0 + (s.x1 - s.x0) * t, v: s.y0 + (s.y1 - s.y0) * t, len: (segLen(s) / k) * s.fill, ang, w: s.w });
+      }
     }
+    // baralhados, para cada traço da nuvem ir para um sítio qualquer da folha
+    for (let i = slots.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [slots[i], slots[j]] = [slots[j], slots[i]]; }
+    const SCALE = 0.6;
     const toPage = (u: number, v: number) => ({
-      x: 0.5 + u * Math.cos(TILT) * 0.62 - v * Math.sin(TILT) * 0.62,
-      y: 0.5 + u * Math.sin(TILT) * 0.62 + v * Math.cos(TILT) * 0.62,
+      x: 0.5 + (u * Math.cos(TILT) - v * Math.sin(TILT)) * SCALE,
+      y: 0.5 + (u * Math.sin(TILT) + v * Math.cos(TILT)) * SCALE,
     });
 
-    const dashes = Array.from({ length: COUNT }, (_, i) => {
+    const dashes = Array.from({ length: slots.length }, (_, i) => {
       const dense = rnd() < 0.62;
       const u = (rnd() - 0.5) * (dense ? 0.9 : 1.7);
       const v = (rnd() - 0.5) * (dense ? 1.1 : 1.8);
-      const slot = slots[i % slots.length];
+      const slot = slots[i];
       const page = toPage(slot.u, slot.v);
       return {
-        x: 0.56 + u * Math.cos(TILT) * 0.5 - v * Math.sin(TILT) * 0.42,
-        y: 0.5 + u * Math.sin(TILT) * 0.5 + v * Math.cos(TILT) * 0.42,
+        x: 0.56 + u * Math.cos(CLOUD_TILT) * 0.5 - v * Math.sin(CLOUD_TILT) * 0.42,
+        y: 0.5 + u * Math.sin(CLOUD_TILT) * 0.5 + v * Math.cos(CLOUD_TILT) * 0.42,
         a: rnd() * Math.PI * 2,
         spin: (rnd() - 0.5) * 0.0012,
         len: dense ? 4 + rnd() * 4 : 5 + rnd() * 7,
-        px: page.x, py: page.y, plen: slot.len,
+        px: page.x, py: page.y, plen: slot.len * SCALE, pang: slot.ang, pw: slot.w,
         phase: rnd() * Math.PI * 2,
         delay: rnd() * 0.35,
         alpha: dense ? 0.7 + rnd() * 0.3 : 0.35 + rnd() * 0.4,
@@ -141,7 +171,8 @@ function Dashes() {
         let y = top + (fy + (d.py - fy) * g) * size;
         const free = d.a + t * d.spin;
         // um traço não tem sentido: roda para a inclinação da folha pelo caminho mais curto
-        const target = TILT + Math.PI * Math.round((free - TILT) / Math.PI);
+        const goal = TILT + d.pang;
+        const target = goal + Math.PI * Math.round((free - goal) / Math.PI);
         const a = free + (target - free) * g;
         const len = d.len + (d.plen * size - d.len) * g;
 
@@ -154,7 +185,7 @@ function Dashes() {
         x += d.ox; y += d.oy;
 
         const hx = Math.cos(a) * len / 2, hy = Math.sin(a) * len / 2;
-        ctx.lineWidth = 1.3 + g * 0.5;
+        ctx.lineWidth = 1.3 + (d.pw - 1.3) * g;
         ctx.strokeStyle = `rgba(255,255,255,${d.alpha + (0.95 - d.alpha) * g * 0.6})`;
         ctx.beginPath();
         ctx.moveTo(x - hx, y - hy);
