@@ -424,21 +424,48 @@ ul.notes { list-style: none; padding-left: 0; }
 
 .rv-note { margin: 6px 0 10px; padding: 10px 12px; border: 1px solid var(--line-2); border-radius: 12px; color: var(--ink-2); background: var(--bg-2); font-size: 13.5px; line-height: 1.5; }
 
-/* ---- Ecrã inicial no PC, mais minimalista: menos contornos, menos peso, mais ar ---- */
+
+/* ---- Ecrã inicial: a estrutura de sempre, com menos ruído e mais acabamento ---- */
+/* Um só momento de entrada para o ecrã inteiro, a partir de algo já visível. */
+@keyframes settle { from { opacity: .4; transform: scale(.985); filter: blur(6px); } }
+.welcome { animation: settle .9s var(--ease) both; }
+.welcome .mode-switch, .welcome .hello, .welcome .composer-wrap, .welcome .idea { animation: none; }
+
+/* O modo: duas metades iguais e um marcador que desliza para a escolhida. */
+.mode-switch { --pad: 4px; position: relative; display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; isolation: isolate; }
+.mode-switch::before { content: ""; position: absolute; z-index: -1; top: var(--pad); bottom: var(--pad); left: var(--pad); width: calc((100% - 2 * var(--pad)) / 2); border-radius: 999px; background: var(--bg-3); transform: translateX(calc(var(--at, 0) * 100%)); transition: transform .45s var(--ease); }
+.mode-switch button, .mode-switch button.is-on { background: transparent; }
+.mode-switch button.is-on { color: var(--ink); }
+
+/* A saudação faz parte do título, num tom mais calmo. */
+.hello h1 .hello-name { display: inline; margin: 0; color: var(--ink-3); font-size: inherit; }
+.hello-logo { color: var(--ink); }
+
+/* A caixa de mensagem: a superfície principal, um degrau acima do fundo. */
+.composer, .composer:focus-within { border-color: var(--field-line); background: var(--field); }
+.composer textarea { caret-color: var(--ink); }
+.composer textarea::placeholder { color: var(--ink-3); }
+
 @media (min-width: 821px) {
-  .mode-switch { padding: 3px; border-color: transparent; background: var(--bg-2); }
-  .mode-switch button { height: 30px; padding: 0 14px; font-size: 13.5px; }
-  .mode-switch button.is-on { color: var(--ink); background: var(--bg-3); }
-  .hello-name { color: var(--ink-3); font-size: 14.5px; }
-  .hello-logo { width: 24px; height: 15px; }
-  .hello h1 { font-weight: 400; }
-  .welcome .composer-wrap { margin-bottom: clamp(16px, 3.4vh, 28px); }
+  .welcome { width: min(100%, 780px); }
+  .mode-switch { --pad: 3px; padding: 3px; border: 0; background: var(--tile); margin-bottom: clamp(28px, 6vh, 56px); }
+  .mode-switch button { height: 30px; padding: 0 16px; font-size: 13.5px; font-weight: 500; }
+  .welcome .hello { gap: 16px; margin-bottom: clamp(22px, 4vh, 34px); }
+  .hello-logo { width: 30px; height: 18px; }
+  .hello h1 { font-size: clamp(28px, min(2.5vw, 4.6vh), 38px); font-weight: 450; letter-spacing: -.025em; }
+  .welcome .composer-wrap { margin-bottom: clamp(12px, 2.4vh, 18px); }
   .ideas { gap: 10px; }
-  .idea { min-height: 0; padding: 14px 14px 13px; border-color: var(--line); border-radius: 16px; background: transparent; }
-  .idea:hover { border-color: var(--line-2); background: var(--bg-2); transform: none; }
-  .idea-icon { margin-bottom: 10px; color: var(--ink-3); }
+  .idea { min-height: 0; padding: 15px 16px 14px; border: 0; border-radius: 16px; background: var(--tile); transition: background .2s var(--ease), transform .2s var(--ease); }
+  .idea:hover { background: var(--tile-hover); transform: none; }
+  .idea:active { transform: scale(.985); }
+  .idea-icon { margin-bottom: 18px; color: var(--ink-3); transition: color .2s; }
   .idea:hover .idea-icon { color: var(--ink); }
-  .idea-icon svg { width: 16px; height: 16px; }
-  .idea strong { font-size: 13.5px; font-weight: 500; }
-  .idea small { font-size: 12.5px; }
+  .idea-icon svg { width: 17px; height: 17px; }
+  .idea-text { gap: 3px; }
+  .idea strong { font-size: 14px; font-weight: 500; letter-spacing: -.005em; }
+  .idea small { color: var(--ink-3); font-size: 13px; line-height: 1.4; }
 }
+@media (max-width: 820px) {
+  .hello h1 .hello-name { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .welcome { animation: none; } .mode-switch::before { transition: none; } }

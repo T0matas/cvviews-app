@@ -16,9 +16,15 @@
   --line-2: #e2e2df;
   --ink: #0e0e0d;
   --ink-2: #4d4d4a;
-  --ink-3: #9a9a96;
+  --ink-3: #767672;
   --btn: #0e0e0d;
   --btn-ink: #ffffff;
+  /* a caixa de mensagem, os cartões de sugestão e a seleção de texto */
+  --field: #f5f5f3;
+  --field-line: rgb(14 14 13 / .08);
+  --tile: rgb(14 14 13 / .035);
+  --tile-hover: rgb(14 14 13 / .065);
+  --select: rgb(14 14 13 / .14);
   --danger: #c4432c;
   --pdf: #c4432c;
   --shadow: 0 1px 2px rgb(0 0 0 / .04), 0 12px 40px -12px rgb(0 0 0 / .14);
@@ -41,9 +47,14 @@
     --line-2: #2a2a2a;
     --ink: #f2f2f2;
     --ink-2: #a8a8a8;
-    --ink-3: #7a7a7a;
+    --ink-3: #868686;
     --btn: #f2f2f2;
     --btn-ink: #000000;
+    --field: #121212;
+    --field-line: rgb(255 255 255 / .07);
+    --tile: rgb(255 255 255 / .03);
+    --tile-hover: rgb(255 255 255 / .06);
+    --select: rgb(242 242 242 / .22);
     --card: #070707;
     --rail: #050505;
     --danger: #ee8a76;
@@ -59,7 +70,7 @@ body { margin: 0; overflow: hidden; color: var(--ink); background: var(--bg); fo
 button, input, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; border: 0; background: none; padding: 0; -webkit-user-select: none; user-select: none; }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 8px; }
-::selection { color: var(--btn-ink); background: var(--ink); }
+::selection { color: inherit; background: var(--select); }
 * { scrollbar-width: thin; scrollbar-color: var(--line-2) transparent; }
 
 .mobile-only { display: none !important; }

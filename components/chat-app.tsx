@@ -1,6 +1,6 @@
 'use client';
 
-import { type ChangeEvent, type DragEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, type CSSProperties, type DragEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import {
   ArrowDown, ArrowUp, BriefcaseBusiness, Check, ChevronDown, ChevronRight, Copy, FileText, Globe, Image as ImageIcon, ListChecks, Loader2, LogIn, LogOut, MessageSquareText,
@@ -664,14 +664,14 @@ export default function ChatApp() {
         <div className="thread" ref={scrollRef} onScroll={(e) => { const el = e.currentTarget; setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80); }}>
           {!messages.length ? (
             <div className="welcome">
-              <div className="mode-switch" role="radiogroup" aria-label="Modo">
+              <div className="mode-switch" role="radiogroup" aria-label="Modo" style={{ '--at': (Object.keys(MODES) as Mode[]).indexOf(mode) } as CSSProperties}>
                 {(Object.keys(MODES) as Mode[]).map((key) => (
                   <button key={key} role="radio" aria-checked={mode === key} className={mode === key ? 'is-on' : ''} onClick={() => changeMode(key)}>{MODES[key].label}</button>
                 ))}
               </div>
               <div className="hello">
-                <p className="hello-name"><Logo className="hello-logo" /><span>Olá{firstName ? `, ${firstName}` : ''}!</span></p>
-                <h1>O que vamos fazer hoje?</h1>
+                <Logo className="hello-logo" />
+                <h1><span className="hello-name">Olá{firstName ? `, ${firstName}` : ''}!</span> O que vamos fazer hoje?</h1>
               </div>
               {wide && composer}
               <div className="ideas">
