@@ -13,7 +13,7 @@ const WINDOW = 30;
 function today(web: boolean) {
   const date = new Date().toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Lisbon' });
   return `Hoje é ${date}. O que sabes de memória pode estar desatualizado.` + (web
-    ? ' Tens pesquisa na web: usa-a sempre que a pergunta dependa de factos atuais ou que mudam (cargos, notícias, preços, salários, leis, empresas, resultados, datas) e responde com o que encontrares. Para conversa e conselhos sobre CVs não precisas de pesquisar.'
+    ? ' Tens pesquisa na web: usa-a sempre que a pergunta dependa de factos atuais ou que mudam (cargos, notícias, preços, salários, leis, empresas, resultados, datas) e responde com o que encontrares. Pesquisa também sempre que te perguntem por uma pessoa, uma empresa ou um facto que não saibas com certeza. Para conversa e conselhos sobre CVs não precisas de pesquisar.'
     : ' Se a pergunta depender de factos atuais, avisa que podes não estar a par das últimas mudanças.');
 }
 
