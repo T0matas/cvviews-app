@@ -157,7 +157,8 @@ const newSpelling = (text: string) => text.replace(OLD_WORDS, (word) => {
 });
 
 export function humanize(value: string) {
-  return newSpelling(value)
+  // Sem emojis nas respostas (as instruções pedem-no, mas o modelo às vezes esquece-se).
+  return newSpelling(value).replace(/[ \t]?\p{Extended_Pictographic}️?/gu, '')
     .replace(/[‐‑‒]/g, '-')
     .replace(/^([ \t]*)[–—][ \t  ]*/gm, '$1- ')
     .replace(/(\d)[   ]*[–—][   ]*(\d)/g, '$1-$2')

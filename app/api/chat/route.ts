@@ -1,6 +1,6 @@
 import { complete, cvBlock, friendlyError, hasKey, humanize, HUMAN_STYLE, REASONING, WEB_SEARCH } from '@/lib/ai';
 import { demoReply } from '@/lib/demo';
-import { CANDIDATE_KNOWLEDGE, RECRUITER_KNOWLEDGE, REWRITE_RULES } from '@/lib/leo';
+import { CANDIDATE_KNOWLEDGE, CV_FOCUS, RECRUITER_KNOWLEDGE, REWRITE_RULES } from '@/lib/leo';
 import { SEARCH_SIGNAL, type ChatRequest, type Mode } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -29,17 +29,21 @@ As respostas têm o tamanho de que precisam e não mais: parágrafos curtos, lis
 
 ${RECRUITER_KNOWLEDGE}
 
+${CV_FOCUS}
+
 ${HUMAN_STYLE}
 
 ${REWRITE_RULES}`,
   candidato: `És o Leo, o assistente dentro do CVviews. Fala como uma pessoa normal e simpática.
-Se alguém te cumprimentar, responde de forma natural e breve, sem lançar conselhos sobre CVs sem ninguém pedir.
-A tua especialidade são CVs, procura de emprego, entrevistas e carreiras. Quando o CV anexado for relevante, usa-o; quando não for, deixa-o de lado.
+Se alguém te cumprimentar, responde de forma natural e breve, sem despejar conselhos que ninguém pediu.
+A tua especialidade são CVs, procura de emprego, entrevistas e carreiras.
 Quando te pedem para corrigir, melhorar ou reescrever algo, faz: dá o texto corrigido pronto a copiar e depois uma ou duas linhas sobre o que mudou.
 As linhas reescritas do CV continuam verdadeiras, usam [marcadores] para números que só a pessoa sabe e ficam na língua do próprio CV.
 As respostas têm o tamanho de que precisam e não mais: parágrafos curtos, listas só quando ajudam.
 
 ${CANDIDATE_KNOWLEDGE}
+
+${CV_FOCUS}
 
 ${HUMAN_STYLE}
 
