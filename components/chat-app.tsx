@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import AuthDialog from './auth-dialog';
 import Onboarding from './onboarding';
+import ApplicationsDialog from './applications-dialog';
 import LeoWriting from './leo-writing';
 import Logo from './logo';
 import SmoothProse from './smooth-prose';
@@ -98,9 +99,9 @@ export default function ChatApp() {
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [dialog, setDialogState] = useState<'auth' | 'settings' | null>(null);
+  const [dialog, setDialogState] = useState<'auth' | 'settings' | 'apps' | null>(null);
   // No telemóvel, abrir um diálogo fecha a gaveta que estava por trás.
-  const setDialog = (next: 'auth' | 'settings' | null) => { if (next) setDrawerOpen(false); setDialogState(next); };
+  const setDialog = (next: 'auth' | 'settings' | 'apps' | null) => { if (next) setDrawerOpen(false); setDialogState(next); };
   const [searchingId, setSearchingId] = useState<string | null>(null);
   const [liveAI, setLiveAI] = useState<boolean | null>(null);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
@@ -650,6 +651,7 @@ export default function ChatApp() {
         </button>
         <button className="rail-btn is-on" onClick={() => setPanelOpen(!panelOpen)} aria-label="Conversas" aria-expanded={panelOpen} title="Conversas"><MessageSquareText size={21} strokeWidth={1.7} /></button>
         <button className="rail-btn" onClick={focusSearch} aria-label="Pesquisar conversas" title="Pesquisar conversas"><Search size={21} strokeWidth={1.7} /></button>
+        <button className="rail-btn" onClick={() => setDialog('apps')} aria-label="Candidaturas" title="Candidaturas"><BriefcaseBusiness size={21} strokeWidth={1.7} /></button>
         <div className="rail-foot">
           {authReady && !user && <button className="rail-btn" onClick={() => setDialog('auth')} aria-label="Entrar" title="Entrar"><LogIn size={21} strokeWidth={1.7} /></button>}
           <button className="rail-btn" onClick={() => setDialog('settings')} aria-label="Configurações" title="Configurações"><Gear size={21} strokeWidth={1.7} /></button>
@@ -673,6 +675,7 @@ export default function ChatApp() {
           {query && <button onClick={() => setQuery('')} aria-label="Limpar pesquisa"><X size={14} /></button>}
         </label>
 
+        <button className="side-row" onClick={() => setDialog('apps')}><BriefcaseBusiness size={19} /> Candidaturas{(memory.applications?.length ?? 0) > 0 && <span className="side-count">{memory.applications!.length}</span>}</button>
         <button className="side-row phone-row" onClick={() => setDialog('settings')}><Gear size={19} /> Configurações</button>
 
         <nav className="history">
@@ -803,6 +806,19 @@ export default function ChatApp() {
 
       {!wide && authReady && !user && skipped === false && <Onboarding onEmail={() => setDialog('auth')} onSkip={skipLogin} />}
       {dialog === 'auth' && <AuthDialog onClose={() => setDialog(null)} />}
+      {dialog === 'apps' && (
+        <ApplicationsDialog
+          items={memory.applications ?? []}
+          onChange={(next) => changeMemory({ ...memoryRef.current, applications: next })}
+          onAdapt={(a) => {
+            setDialog(null);
+            newChat();
+            setNewChatMode('candidato');
+            setDraft(`Adapta o meu CV a esta vaga: ${a.role || 'vaga'}${a.company ? ` na ${a.company}` : ''}.${a.link ? ` Anúncio: ${a.link}` : ''} Mostra-me o que mudar, com antes e depois, e as palavras-chave que faltam.`);
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
       {dialog === 'settings' && (
         <SettingsDialog
           settings={settings}

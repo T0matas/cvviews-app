@@ -166,3 +166,40 @@ img.avatar { object-fit: cover; border: 0; }
 .ats .vx-check strong { font-weight: 600; }
 .ats-text summary { cursor: pointer; color: var(--ink-2); font-size: 14px; }
 .ats-text pre { max-height: 320px; overflow: auto; margin: 8px 0 0; padding: 14px; border-radius: 12px; background: var(--tile); color: var(--ink-2); font: 12.5px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: pre-wrap; }
+
+/* Candidaturas */
+.side-count { margin-left: auto; min-width: 22px; padding: 1px 7px; border-radius: 99px; color: var(--ink-2); background: var(--bg-3); font-size: 12px; text-align: center; }
+.dialog.apps { width: min(100%, 560px); display: flex; flex-direction: column; gap: 14px; --s-preparar: var(--ink-3); --s-enviada: #4f8de0; --s-entrevista: #d9a33b; --s-proposta: #3fae74; --s-recusada: #e0664f; }
+.apps-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.apps-head h2 { margin: 0 0 4px; font-size: 20px; }
+.apps-head .dialog-sub { margin: 0; }
+.apps-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.apps-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 4px; border-radius: 12px; background: var(--tile); }
+.apps-stat strong { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.apps-stat span { color: var(--ink-3); font-size: 11.5px; }
+.apps-stat.s-enviada strong { color: var(--s-enviada); } .apps-stat.s-entrevista strong { color: var(--s-entrevista); } .apps-stat.s-proposta strong { color: var(--s-proposta); } .apps-stat.s-recusada strong { color: var(--s-recusada); }
+.apps-form { display: grid; gap: 8px; padding: 14px; border-radius: 16px; background: var(--tile); }
+.apps-form input { height: 42px; padding: 0 12px; border: 1px solid var(--line-2); border-radius: 10px; outline: 0; background: var(--bg); color: var(--ink); font-size: 14.5px; }
+.apps-form input:focus { border-color: var(--ink-3); }
+.apps-form-row { display: flex; justify-content: flex-end; gap: 8px; }
+.apps-form .primary-btn { width: auto; padding: 0 16px; }
+.apps-add { display: flex; align-items: center; justify-content: center; gap: 8px; height: 42px; border: 1px dashed var(--line-2); border-radius: 12px; color: var(--ink-2); font-size: 14.5px; }
+.apps-add:hover { color: var(--ink); border-color: var(--ink-3); }
+.apps-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.apps-item { display: grid; gap: 10px; padding: 14px; border-radius: 16px; background: var(--tile); border-left: 1px solid transparent; }
+.apps-item-top { display: flex; align-items: center; gap: 4px; }
+.apps-item-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.apps-item-title strong { font-size: 15px; font-weight: 600; }
+.apps-item-title span { color: var(--ink-3); font-size: 13.5px; }
+.apps-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.apps-steps button { height: 30px; border-radius: 8px; color: var(--ink-3); background: var(--bg); font-size: 12px; transition: color .15s, background .15s; }
+.apps-steps button:hover { color: var(--ink); }
+.apps-steps button.is-on { color: #fff; font-weight: 600; }
+.apps-item.s-preparar .apps-steps button.is-on { color: var(--btn-ink); background: var(--ink-2); }
+.apps-item.s-enviada .apps-steps button.is-on { background: var(--s-enviada); }
+.apps-item.s-entrevista .apps-steps button.is-on { background: var(--s-entrevista); }
+.apps-item.s-proposta .apps-steps button.is-on { background: var(--s-proposta); }
+.apps-item.s-recusada .apps-steps button.is-on { background: var(--s-recusada); }
+.apps-adapt { display: inline-flex; align-items: center; gap: 6px; justify-self: start; color: var(--ink-2); font-size: 13.5px; }
+.apps-adapt:hover { color: var(--ink); }
+@media (max-width: 520px) { .apps-steps { grid-template-columns: repeat(3, 1fr); } .apps-stats { grid-template-columns: repeat(3, 1fr); } }

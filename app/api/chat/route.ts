@@ -28,6 +28,9 @@ function memoryNote(memory: ChatRequest['memory'], question: string, hasAttachme
 
 O que já sabes sobre esta pessoa, de conversas anteriores. Usa-o quando ajudar, sem o repetir em cada resposta; se ela disser agora algo diferente, vale o que diz agora:
 - ${notes.join('\n- ')}`;
+  const LABELS: Record<string, string> = { preparar: 'a preparar', enviada: 'enviada', entrevista: 'em entrevista', proposta: 'com proposta', recusada: 'recusada' };
+  const apps = (Array.isArray(memory.applications) ? memory.applications : []).slice(0, 40).filter((a) => a && (a.company || a.role));
+  if (apps.length) out += '\n\nAs candidaturas que esta pessoa está a acompanhar no CVviews (fala delas pelo nome quando vier a propósito):\n' + apps.map((a) => `- ${String(a.role || 'Vaga').slice(0, 120)} na ${String(a.company || 'empresa por indicar').slice(0, 120)}: ${LABELS[a.status] ?? a.status}`).join('\n');
   const cv = memory.cv;
   if (cv?.text && !hasAttachment && ABOUT_CV.test(question)) {
     out += `

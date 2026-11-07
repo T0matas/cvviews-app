@@ -44,5 +44,5 @@ export type ChatRequest = {
   web?: boolean;
   messages: { role: Role; text: string; attachments?: Attachment[] }[];
   /** O que o Leo se lembra desta pessoa (notas e o último CV), quando a memória está ligada. */
-  memory?: { notes: string[]; cv?: { name: string; text: string } };
+  memory?: { notes: string[]; cv?: { name: string; text: string }; applications?: { company: string; role: string; status: string }[] };
 };
