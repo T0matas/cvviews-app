@@ -235,7 +235,7 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
           <p className="rv-p">O teu CV tal como está, com a mesma estrutura, imagens e cores: só as frases que a revisão riscou foram trocadas pelas novas. Onde vires um <span className="cvdoc-blank">[X]</span>, põe o teu número.</p>
           {unplaced.length > 0 && (
             <div className="rv-unplaced">
-              <p className="rv-p">{unplaced.length === 1 ? 'Esta correção não coube no desenho sem o estragar' : 'Estas correções não couberam no desenho sem o estragar'}: troca-as tu no teu ficheiro.</p>
+              <p className="rv-p">{unplaced.length === 1 ? 'Esta correção não coube no desenho sem o estragar: troca-a tu no teu ficheiro.' : 'Estas correções não couberam no desenho sem o estragar: troca-as tu no teu ficheiro.'}</p>
               <div className="vx vx-ba">{unplaced.map((u, i) => (
                 <div className="vx-ba-item" key={i}><p className="vx-before"><span>Antes</span>{u.original}</p><p className="vx-after"><span>Depois</span>{u.improved}</p></div>
               ))}</div>

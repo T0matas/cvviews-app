@@ -56,7 +56,7 @@ const SCHEMA = obj({
     improved: str("A stronger rewrite in the CV's own language, so it can be pasted straight in. Keep it truthful; use [placeholders] for numbers the candidate must fill in."),
     short: str("The same improvement as a natural sentence in the CV's own language and tone, about as long as the original line (at most a third longer), to replace it in place on the page. Only facts already on that line; a figure the candidate must add is a placeholder like [X]."),
     why: str('Why the rewrite is stronger, one sentence.'),
-  }), '3 to 6 before/after rewrites of the weakest sentences (profile and bullets), weakest first. If the CV is a template with placeholder text (lorem ipsum), rewrite those placeholder sentences as suggestions, one rewrite per sentence.'),
+  }), '3 to 6 before/after rewrites of the weakest sentences (profile and bullets), weakest first. If the CV is a template with placeholder text (lorem ipsum), rewrite EVERY placeholder paragraph or bullet (the profile and each entry, up to 10 rewrites), each one quoted exactly as it is on the CV and replaced by a suggestion that fits the title and company of that entry, with [X] for numbers. When several entries share the same placeholder text, still write one rewrite per entry (quoting the same text again), in the order the entries appear.'),
   ats: obj({
     score: int('Estimated applicant-tracking-system compatibility from 0 to 100.'),
     missing_keywords: list(str('Keyword'), 'Up to 8 keywords recruiters for this role would expect but are missing.'),

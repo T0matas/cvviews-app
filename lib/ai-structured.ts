@@ -43,6 +43,14 @@ export function languageOf(text: string) {
   for (const w of words) for (const k in STOPSETS) if (STOPSETS[k].has(w)) counts[k]++;
   // As letras portuguesas desempatam com o espanhol.
   counts.pt += (String(text).match(/[ãõç]|ção|ções/gi) || []).length;
+  // Num modelo só com lorem ipsum, os títulos e cargos são a única língua que há ("EXPERIENCE", "Senior Web Designer").
+  const HEADS: Record<string, RegExp> = {
+    en: /\b(experience|education|skills|profile|summary|contact|references?|languages|projects|certifications|interests|hobbies|about me|work|university|degree|senior|designer|developer|manager)\b/gi,
+    pt: /\b(experiência|formação|educação|competências|perfil|resumo|contacto|contactos|referências|línguas|idiomas|projetos|certificações|interesses|sobre mim|licenciatura|universidade)\b/gi,
+    es: /\b(experiencia|formación|educación|habilidades|perfil|contacto|referencias|idiomas|proyectos|sobre mí)\b/gi,
+    fr: /\b(expérience|formation|compétences|profil|contact|références|langues|projets|centres d'intérêt)\b/gi,
+  };
+  for (const k in HEADS) if (k in counts) counts[k] += (real.match(HEADS[k]) || []).length;
   const [best, second] = Object.entries(counts).sort((a, b) => b[1] - a[1]);
   if (best[1] < 2 || best[1] === second[1]) return '';
   return best[0];
