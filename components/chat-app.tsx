@@ -3,7 +3,7 @@
 import { type ChangeEvent, type DragEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import {
-  ArrowDown, ArrowUp, BriefcaseBusiness, Check, ChevronDown, ChevronRight, Copy, FileText, Globe, Image as ImageIcon, ListChecks, Loader2, LogIn, LogOut, MessageSquareText,
+  ArrowDown, ArrowUp, ArrowUpRight, BriefcaseBusiness, Check, ChevronDown, ChevronRight, Copy, FileText, Globe, Image as ImageIcon, ListChecks, Loader2, LogIn, LogOut, MessageSquareText,
   Mic, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings as Gear, Settings2,
   Square, SquarePen, Trash2, UserRound, UsersRound, X,
 } from 'lucide-react';
@@ -432,6 +432,12 @@ export default function ChatApp() {
 
   const userName = settings.displayName.trim() || user?.displayName || '';
   const firstName = userName.split(/\s+/)[0];
+  // "Bom dia", "Boa tarde" ou "Boa noite", pela hora de quem usa (só no browser, para não divergir do servidor).
+  const [greeting, setGreeting] = useState('Olá');
+  useEffect(() => {
+    const h = new Date().getHours();
+    setGreeting(h >= 6 && h < 13 ? 'Bom dia' : h >= 13 && h < 20 ? 'Boa tarde' : 'Boa noite');
+  }, []);
   const initials = (userName || user?.email || '').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
   const canSend = (draft.trim().length > 0 || pending.length > 0) && !isStreaming && !pending.some((f) => f.reading);
 
@@ -594,17 +600,14 @@ export default function ChatApp() {
       {/* A lista de conversas: ao lado da faixa no PC, gaveta no telemóvel. */}
       <aside className="sidebar" aria-label="Conversas">
         <div className="sidebar-top">
-          <span className="brand"><Logo className="brand-logo" /><span className="brand-word">CVviews</span></span>
-          <span className="sidebar-tools">
-            <button className="close-btn desktop-only" onClick={() => setDialog('settings')} aria-label="Configurações" title="Configurações"><Gear size={17} /></button>
-            <button className="close-btn" onClick={closeSidebar} aria-label="Fechar barra lateral" title="Fechar barra lateral"><span className="desktop-only"><PanelLeftClose size={18} /></span><span className="mobile-only"><X size={18} /></span></button>
-          </span>
+          <span className="brand-word">CVviews</span>
+          <button className="close-btn" onClick={closeSidebar} aria-label="Fechar" title="Fechar"><X size={19} /></button>
         </div>
 
-        <button className="new-chat-btn" onClick={newChat}><Plus size={18} strokeWidth={2.2} /> Nova conversa <kbd className="desktop-only">Ctrl ⇧ O</kbd></button>
+        <button className="side-row new-chat is-on" onClick={newChat}><SquarePen size={19} /> Nova conversa <kbd className="desktop-only">Ctrl ⇧ O</kbd></button>
 
         <label className="side-row search">
-          <Search size={17} />
+          <Search size={19} />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Pesquisar conversas" aria-label="Pesquisar conversas" />
           {query && <button onClick={() => setQuery('')} aria-label="Limpar pesquisa"><X size={14} /></button>}
         </label>
@@ -612,13 +615,7 @@ export default function ChatApp() {
         <button className="side-row phone-row" onClick={() => setDialog('settings')}><Gear size={19} /> Configurações</button>
 
         <nav className="history">
-          {hydrated && !conversations.length && (
-            <div className="history-empty-card">
-              <MessageSquareText size={20} strokeWidth={1.6} />
-              <strong>Ainda sem conversas</strong>
-              <span>Anexa um CV ou escreve ao Leo: as tuas conversas ficam aqui.</span>
-            </div>
-          )}
+          {hydrated && !conversations.length && <p className="history-empty">As tuas conversas aparecem aqui.</p>}
           {hydrated && conversations.length > 0 && !filtered.length && <p className="history-empty">Nenhuma conversa encontrada.</p>}
           {filtered.map((group) => (
             <section key={group.label}>
@@ -650,11 +647,7 @@ export default function ChatApp() {
 
         <div className="sidebar-footer">
           {authReady && !user ? (
-            <div className="signin-card">
-              <strong>Guarda as tuas conversas</strong>
-              <span>Entra para as teres em qualquer dispositivo.</span>
-              <button className="signin-btn" onClick={() => setDialog('auth')}><LogIn size={16} /> Entrar</button>
-            </div>
+            <button className="signin-btn" onClick={() => setDialog('auth')}><LogIn size={19} /> Entrar</button>
           ) : (
             <button className="profile" onClick={(e) => { e.stopPropagation(); setProfileMenu(profileMenu === 'panel' ? null : 'panel'); }} aria-expanded={profileMenu === 'panel'}>
               {avatar}
@@ -675,7 +668,37 @@ export default function ChatApp() {
         </header>
 
         <div className="thread" ref={scrollRef} onScroll={(e) => { const el = e.currentTarget; setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80); }}>
-          {!messages.length ? (
+          {!messages.length && wide ? (
+            // PC: uma coluna alinhada à esquerda, com a saudação, o modo, a caixa e as sugestões numa lista.
+            <div className="desk">
+              <div className="desk-glow" aria-hidden="true" />
+              <div className="desk-col">
+                <header className="desk-head">
+                  <div className="desk-hello">
+                    <p><Logo className="desk-logo" /><span>{greeting}{firstName ? `, ${firstName}` : ''}</span></p>
+                    <h1>O que vamos fazer hoje?</h1>
+                  </div>
+                  <div className="desk-tabs" role="radiogroup" aria-label="Modo">
+                    {(Object.keys(MODES) as Mode[]).map((key) => (
+                      <button key={key} role="radio" aria-checked={mode === key} className={mode === key ? 'is-on' : ''} onClick={() => changeMode(key)}>{MODES[key].label}</button>
+                    ))}
+                  </div>
+                </header>
+                {composer}
+                <section className="desk-list" aria-label="Sugestões">
+                  <h2>{mode === 'recrutador' ? 'Para recrutar' : 'Para a tua candidatura'}</h2>
+                  {SUGGESTIONS[mode].map(({ icon: Icon, title, hint, prompt }, i) => (
+                    <button key={title} className="desk-row" style={{ animationDelay: `${0.12 + i * 0.05}s` }} onClick={() => { if (prompt.startsWith('Vou anexar')) { setDraft(prompt); fileRef.current?.click(); } else send(prompt); }}>
+                      <span className="desk-row-icon"><Icon size={18} strokeWidth={1.7} /></span>
+                      <span className="desk-row-text"><strong>{title}</strong><small>{hint}</small></span>
+                      <ArrowUpRight size={17} className="desk-row-go" />
+                    </button>
+                  ))}
+                </section>
+                <p className="desk-drop"><Paperclip size={14} /> Arrasta um CV para qualquer sítio da página · PDF, Word ou fotografia</p>
+              </div>
+            </div>
+          ) : !messages.length ? (
             <div className="welcome">
               <div className="mode-switch" role="radiogroup" aria-label="Modo">
                 {(Object.keys(MODES) as Mode[]).map((key) => (
