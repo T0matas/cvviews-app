@@ -90,8 +90,8 @@ export default function ChatApp() {
   const [pending, setPending] = useState<Pending[]>([]);
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  // No PC, a faixa de ícones fica sempre; a lista de conversas abre ao lado dela.
-  const [panelOpen, setPanelOpenState] = useState(false);
+  // No PC, a app abre sempre com a barra lateral aberta; fechada, fica só a faixa de ícones.
+  const [panelOpen, setPanelOpen] = useState(true);
   const [query, setQuery] = useState('');
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -144,7 +144,6 @@ export default function ChatApp() {
       const stored = { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') } as Settings;
       setSettings(stored);
       setNewChatMode(stored.defaultMode);
-      if (localStorage.getItem('cvviews-panel') === 'open') setPanelOpenState(true);
     } catch { /* armazenamento indisponível */ }
     if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') navigator.serviceWorker.register('/sw.js').catch(() => {});
     return onAuthStateChanged(auth(), (next) => { setUser(next); setAuthReady(true); });
@@ -216,11 +215,6 @@ export default function ChatApp() {
 
   const updateConversation = (id: string, update: (c: Conversation) => Conversation) =>
     setConversations((list) => list.map((c) => (c.id === id ? update(c) : c)));
-
-  function setPanelOpen(open: boolean) {
-    setPanelOpenState(open);
-    try { if (open) localStorage.setItem('cvviews-panel', 'open'); else localStorage.removeItem('cvviews-panel'); } catch {}
-  }
 
   function closeSidebar() {
     setDrawerOpen(false);
@@ -600,14 +594,17 @@ export default function ChatApp() {
       {/* A lista de conversas: ao lado da faixa no PC, gaveta no telemóvel. */}
       <aside className="sidebar" aria-label="Conversas">
         <div className="sidebar-top">
-          <span className="brand-word">CVviews</span>
-          <button className="close-btn" onClick={closeSidebar} aria-label="Fechar" title="Fechar"><X size={19} /></button>
+          <span className="brand"><Logo className="brand-logo" /><span className="brand-word">CVviews</span></span>
+          <span className="sidebar-tools">
+            <button className="close-btn desktop-only" onClick={() => setDialog('settings')} aria-label="Configurações" title="Configurações"><Gear size={17} /></button>
+            <button className="close-btn" onClick={closeSidebar} aria-label="Fechar barra lateral" title="Fechar barra lateral"><span className="desktop-only"><PanelLeftClose size={18} /></span><span className="mobile-only"><X size={18} /></span></button>
+          </span>
         </div>
 
-        <button className="side-row new-chat is-on" onClick={newChat}><SquarePen size={19} /> Nova conversa <kbd className="desktop-only">Ctrl ⇧ O</kbd></button>
+        <button className="new-chat-btn" onClick={newChat}><Plus size={18} strokeWidth={2.2} /> Nova conversa <kbd className="desktop-only">Ctrl ⇧ O</kbd></button>
 
         <label className="side-row search">
-          <Search size={19} />
+          <Search size={17} />
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Pesquisar conversas" aria-label="Pesquisar conversas" />
           {query && <button onClick={() => setQuery('')} aria-label="Limpar pesquisa"><X size={14} /></button>}
         </label>
@@ -615,7 +612,13 @@ export default function ChatApp() {
         <button className="side-row phone-row" onClick={() => setDialog('settings')}><Gear size={19} /> Configurações</button>
 
         <nav className="history">
-          {hydrated && !conversations.length && <p className="history-empty">As tuas conversas aparecem aqui.</p>}
+          {hydrated && !conversations.length && (
+            <div className="history-empty-card">
+              <MessageSquareText size={20} strokeWidth={1.6} />
+              <strong>Ainda sem conversas</strong>
+              <span>Anexa um CV ou escreve ao Leo: as tuas conversas ficam aqui.</span>
+            </div>
+          )}
           {hydrated && conversations.length > 0 && !filtered.length && <p className="history-empty">Nenhuma conversa encontrada.</p>}
           {filtered.map((group) => (
             <section key={group.label}>
@@ -647,7 +650,11 @@ export default function ChatApp() {
 
         <div className="sidebar-footer">
           {authReady && !user ? (
-            <button className="signin-btn" onClick={() => setDialog('auth')}><LogIn size={19} /> Entrar</button>
+            <div className="signin-card">
+              <strong>Guarda as tuas conversas</strong>
+              <span>Entra para as teres em qualquer dispositivo.</span>
+              <button className="signin-btn" onClick={() => setDialog('auth')}><LogIn size={16} /> Entrar</button>
+            </div>
           ) : (
             <button className="profile" onClick={(e) => { e.stopPropagation(); setProfileMenu(profileMenu === 'panel' ? null : 'panel'); }} aria-expanded={profileMenu === 'panel'}>
               {avatar}

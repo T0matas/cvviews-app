@@ -166,7 +166,7 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
         const { drawCorrections, styleFor } = await import('@/lib/markup.js');
         const result = await drawCorrections({ review, images: source?.images, pdf: source?.pdf, onStep: setStep });
         setLook(result.layout ? { layout: result.layout, styleFor } : null);
-        if (result.fixed > 0) setFixedShots(result.corrected.map((c) => c.toDataURL('image/jpeg', 0.92)));
+        if (result.fixed > 0) setFixedShots(result.corrected.map((c) => c.toDataURL('image/jpeg', 0.96)));
         if (!result.marks) throw new Error('nenhuma citação encontrada na página');
         setShots(result.pages.map((c) => c.toDataURL('image/jpeg', 0.9)));
       } catch (err) {
