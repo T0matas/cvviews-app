@@ -31,6 +31,7 @@ type Props = {
   user: User | null;
   conversationCount: number;
   onExport: () => void;
+  onExportTraining: () => void;
   onClearAll: () => void;
   onSignIn: () => void;
   onSignOut: () => void;
@@ -58,7 +59,7 @@ function Segmented<T extends string>({ value, options, onChange }: { value: T; o
   );
 }
 
-export default function SettingsDialog({ settings, onChange, user, conversationCount, onExport, onClearAll, onSignIn, onSignOut, onClose }: Props) {
+export default function SettingsDialog({ settings, onChange, user, conversationCount, onExport, onExportTraining, onClearAll, onSignIn, onSignOut, onClose }: Props) {
   const [tab, setTab] = useState<Tab>('geral');
   const set = <K extends keyof Settings>(key: K, value: Settings[K]) => onChange({ ...settings, [key]: value });
 
@@ -112,6 +113,7 @@ export default function SettingsDialog({ settings, onChange, user, conversationC
               <>
                 <Row title="Onde ficam as conversas" hint={user ? 'Neste dispositivo, separadas por conta.' : 'Neste dispositivo. Entra para as separares por conta.'}><span className="setting-value">{conversationCount} {conversationCount === 1 ? 'conversa' : 'conversas'}</span></Row>
                 <Row title="Exportar conversas" hint="Um ficheiro JSON com todas as conversas."><button className="ghost-btn" onClick={onExport}>Exportar</button></Row>
+                <Row title="Exportar exemplos para treino" hint="As respostas com 👍 deste dispositivo, prontas para treinar um modelo (JSONL)."><button className="ghost-btn" onClick={onExportTraining}>Exportar</button></Row>
                 <Row title="Eliminar todas as conversas" hint="Não dá para desfazer."><button className="ghost-btn danger" onClick={onClearAll}>Eliminar</button></Row>
               </>
             )}

@@ -79,7 +79,7 @@ export function cleanTranscript(text: string) {
 // gpt-oss pensa antes de responder e isso conta para o limite por minuto; um pensamento leve chega.
 export const REASONING = PROVIDER.name === 'Groq' ? { reasoning_effort: process.env.GROQ_REASONING || 'low' } : {};
 
-export const HUMAN_STYLE = `Escreve sempre em português de Portugal (pt-PT), nunca em português do Brasil.
+export const HUMAN_STYLE = `Escreve sempre em português de Portugal (pt-PT), nunca em português do Brasil, com a ortografia atual (Acordo Ortográfico de 1990): "exatidão", "ação", "direção", "ótimo", não "exactidão", "acção", "direcção", "óptimo".
 Trata a pessoa por "tu" e usa o vocabulário de Portugal: "equipa", "ficheiro", "ecrã", "telemóvel", "utilizador", "candidatura", "contacto", "facto", "programador" (não "desenvolvedor").
 Escreve como um recrutador atento e simpático fala com alguém do outro lado da mesa: palavras simples, frases curtas, concreto sobre esta pessoa e nada genérico.
 Nunca uses travessões (— ou –); usa vírgulas, pontos ou parênteses.
@@ -143,8 +143,21 @@ export async function complete(body: Record<string, unknown>, signal?: AbortSign
 }
 
 // Troca os caracteres tipográficos que fazem um texto parecer escrito por uma máquina.
+// Grafia anterior ao Acordo Ortográfico que o modelo às vezes usa. Só palavras que não existem assim noutra língua,
+// para nunca estragar uma linha de um CV em espanhol ou inglês.
+const OLD_SPELLING: Record<string, string> = {
+  exactidão: 'exatidão', acção: 'ação', acções: 'ações', direcção: 'direção', direcções: 'direções', selecção: 'seleção', selecções: 'seleções',
+  colecção: 'coleção', correcção: 'correção', correcções: 'correções', protecção: 'proteção', inspecção: 'inspeção', objectivo: 'objetivo',
+  objectivos: 'objetivos', projecto: 'projeto', projectos: 'projetos', actualização: 'atualização', actualizações: 'atualizações',
+};
+const OLD_WORDS = new RegExp(`(?<!\\p{L})(${Object.keys(OLD_SPELLING).join('|')})(?!\\p{L})`, 'giu');
+const newSpelling = (text: string) => text.replace(OLD_WORDS, (word) => {
+  const fixed = OLD_SPELLING[word.toLowerCase()] ?? word;
+  return word[0] === word[0].toUpperCase() ? fixed[0].toUpperCase() + fixed.slice(1) : fixed;
+});
+
 export function humanize(value: string) {
-  return value
+  return newSpelling(value)
     .replace(/[‐‑‒]/g, '-')
     .replace(/^([ \t]*)[–—][ \t  ]*/gm, '$1- ')
     .replace(/(\d)[   ]*[–—][   ]*(\d)/g, '$1-$2')

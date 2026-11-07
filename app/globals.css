@@ -312,3 +312,4 @@ button { cursor: pointer; border: 0; background: none; padding: 0; -webkit-user-
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+.msg-actions button.is-on { color: var(--ink); }

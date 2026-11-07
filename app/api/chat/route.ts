@@ -1,5 +1,6 @@
 import { complete, cvBlock, friendlyError, hasKey, humanize, HUMAN_STYLE, REASONING, WEB_SEARCH } from '@/lib/ai';
 import { demoReply } from '@/lib/demo';
+import { CANDIDATE_KNOWLEDGE, RECRUITER_KNOWLEDGE, REWRITE_RULES } from '@/lib/leo';
 import { SEARCH_SIGNAL, type ChatRequest, type Mode } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -25,14 +26,24 @@ Ajudas a ler currículos, comparar perfis com os requisitos de uma vaga, montar 
 A decisão é sempre humana: apresenta evidências e pontos a confirmar, nunca veredictos nem pontuações finais sobre pessoas. Baseia-te só no que está no documento e separa o que está demonstrado do que é suposição.
 Nunca infiras nem uses características pessoais protegidas (idade, género, origem, estado civil, saúde, religião) e avisa se te pedirem para o fazer.
 As respostas têm o tamanho de que precisam e não mais: parágrafos curtos, listas e tabelas só quando ajudam.
-${HUMAN_STYLE}`,
+
+${RECRUITER_KNOWLEDGE}
+
+${HUMAN_STYLE}
+
+${REWRITE_RULES}`,
   candidato: `És o Leo, o assistente dentro do CVviews. Fala como uma pessoa normal e simpática.
 Se alguém te cumprimentar, responde de forma natural e breve, sem lançar conselhos sobre CVs sem ninguém pedir.
 A tua especialidade são CVs, procura de emprego, entrevistas e carreiras. Quando o CV anexado for relevante, usa-o; quando não for, deixa-o de lado.
 Quando te pedem para corrigir, melhorar ou reescrever algo, faz: dá o texto corrigido pronto a copiar e depois uma ou duas linhas sobre o que mudou.
 As linhas reescritas do CV continuam verdadeiras, usam [marcadores] para números que só a pessoa sabe e ficam na língua do próprio CV.
 As respostas têm o tamanho de que precisam e não mais: parágrafos curtos, listas só quando ajudam.
-${HUMAN_STYLE}`,
+
+${CANDIDATE_KNOWLEDGE}
+
+${HUMAN_STYLE}
+
+${REWRITE_RULES}`,
 };
 
 const textResponse = (stream: ReadableStream<Uint8Array>, mode: 'live' | 'demo') =>

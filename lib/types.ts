@@ -17,6 +17,8 @@ export type Message = {
   text: string;
   attachments?: Pick<Attachment, 'name' | 'kind' | 'size'>[];
   error?: boolean;
+  /** A avaliação de quem leu a resposta (👍/👎). */
+  feedback?: 'up' | 'down';
   /** Presente quando a resposta é a revisão de um CV anexado (como no site). */
   cvReview?: { cvText: string; cvName: string; target: string; review?: Review; full?: FullCv; error?: string };
 };

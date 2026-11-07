@@ -5,7 +5,7 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import {
   ArrowDown, ArrowUp, BriefcaseBusiness, Check, ChevronDown, ChevronRight, Copy, FileText, Globe, Image as ImageIcon, ListChecks, Loader2, LogIn, LogOut, MessageSquareText,
   Mic, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings as Gear, Settings2,
-  Square, SquarePen, Trash2, UserRound, UsersRound, X,
+  Square, SquarePen, ThumbsDown, ThumbsUp, Trash2, UserRound, UsersRound, X,
 } from 'lucide-react';
 import AuthDialog from './auth-dialog';
 import Onboarding from './onboarding';
@@ -14,6 +14,7 @@ import Logo from './logo';
 import SmoothProse from './smooth-prose';
 import SettingsDialog, { DEFAULT_SETTINGS, type Settings } from './settings-dialog';
 import { auth } from '@/lib/firebase';
+import { type Rating, sendFeedback, trainingJsonl } from '@/lib/feedback';
 import ReviewView, { type CvSource } from './review-view';
 import { readImage, readPdf, readWord, toBase64 } from '@/lib/read-file';
 import { type FullCv, type Review, reviewSummary } from '@/lib/review';
@@ -399,6 +400,28 @@ export default function ChatApp() {
     send();
   }
 
+  // 👍/👎 numa resposta: fica na conversa e, com sessão, segue para o projeto (para melhorar o Leo).
+  function rate(message: Message, rating: Rating) {
+    if (!active) return;
+    const next = message.feedback === rating ? undefined : rating;
+    const id = active.id;
+    updateConversation(id, (c) => ({ ...c, messages: c.messages.map((x) => (x.id === message.id ? { ...x, feedback: next } : x)) }));
+    if (!next) return;
+    const index = active.messages.findIndex((x) => x.id === message.id);
+    const question = active.messages.slice(0, index).reverse().find((x) => x.role === 'user')?.text ?? '';
+    setNotice(next === 'up' ? 'Obrigado. Isto ajuda o Leo a melhorar.' : 'Obrigado. Vamos usar isto para melhorar o Leo.');
+    sendFeedback({ rating: next, mode: active.mode, question, answer: message.text }).catch((err) => console.warn('[feedback]', err));
+  }
+
+  function exportTraining() {
+    const data = trainingJsonl(conversations);
+    if (!data) return setNotice('Ainda não há respostas com 👍 para exportar.');
+    const url = URL.createObjectURL(new Blob([`${data}\n`], { type: 'application/jsonl' }));
+    const link = Object.assign(document.createElement('a'), { href: url, download: `cvviews-treino-${new Date().toISOString().slice(0, 10)}.jsonl` });
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
   async function copy(message: Message) {
     try {
       await navigator.clipboard.writeText(message.text);
@@ -714,6 +737,10 @@ export default function ChatApp() {
                         <div className="msg-actions">
                           <button onClick={() => copy(m)} aria-label="Copiar" title="Copiar">{copiedId === m.id ? <Check size={15} /> : <Copy size={15} />}</button>
                           {isLast && <button onClick={regenerate} aria-label="Gerar novamente" title="Gerar novamente"><RotateCcw size={15} /></button>}
+                          {!m.error && <>
+                            <button className={m.feedback === 'up' ? 'is-on' : ''} onClick={() => rate(m, 'up')} aria-label="Boa resposta" aria-pressed={m.feedback === 'up'} title="Boa resposta"><ThumbsUp size={15} /></button>
+                            <button className={m.feedback === 'down' ? 'is-on' : ''} onClick={() => rate(m, 'down')} aria-label="Má resposta" aria-pressed={m.feedback === 'down'} title="Má resposta"><ThumbsDown size={15} /></button>
+                          </>}
                         </div>
                       )}
                     </div>
@@ -739,6 +766,7 @@ export default function ChatApp() {
           user={user}
           conversationCount={conversations.length}
           onExport={exportConversations}
+          onExportTraining={exportTraining}
           onClearAll={clearAll}
           onSignIn={() => setDialog('auth')}
           onSignOut={logout}
