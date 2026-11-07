@@ -1,6 +1,6 @@
 import { complete, cvBlock, friendlyError, hasKey, humanize, HUMAN_STYLE, REASONING, WEB_SEARCH } from '@/lib/ai';
 import { demoReply } from '@/lib/demo';
-import { CANDIDATE_KNOWLEDGE, CV_FOCUS, RECRUITER_KNOWLEDGE, REWRITE_RULES } from '@/lib/leo';
+import { CANDIDATE_KNOWLEDGE, CV_FOCUS, RECRUITER_KNOWLEDGE, REWRITE_RULES, VISUAL_RULES } from '@/lib/leo';
 import { SEARCH_SIGNAL, type ChatRequest, type Mode } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -52,6 +52,8 @@ ${RECRUITER_KNOWLEDGE}
 
 ${CV_FOCUS}
 
+${VISUAL_RULES}
+
 ${HUMAN_STYLE}
 
 ${REWRITE_RULES}`,
@@ -65,6 +67,8 @@ As respostas têm o tamanho de que precisam e não mais: parágrafos curtos, lis
 ${CANDIDATE_KNOWLEDGE}
 
 ${CV_FOCUS}
+
+${VISUAL_RULES}
 
 ${HUMAN_STYLE}
 

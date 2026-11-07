@@ -119,3 +119,43 @@ img.avatar { object-fit: cover; border: 0; }
 .memory-list li { display: flex; align-items: center; gap: 8px; padding: 6px 4px 6px 12px; border-radius: 10px; background: var(--bg-2); font-size: 13.5px; line-height: 1.4; }
 .memory-list li span { flex: 1; min-width: 0; }
 .memory-list .icon-btn { width: 28px; height: 28px; }
+
+/* Blocos visuais nas respostas do Leo */
+.prose .vx { margin: 4px 0 16px; --good: #3fae74; --mid: #d9a33b; --low: #e0664f; }
+.vx-ring { display: flex; align-items: center; gap: 18px; padding: 16px 18px; border-radius: 16px; background: var(--tile); }
+.vx-ring svg { width: 86px; height: 86px; flex: 0 0 auto; transform: rotate(-90deg); }
+.vx-ring circle { fill: none; stroke-width: 10; }
+.vx-ring-track { stroke: var(--line-2); }
+.vx-ring-fill { stroke-linecap: round; transition: stroke-dasharray .8s var(--ease); }
+.vx-ring-fill.good { stroke: var(--good); } .vx-ring-fill.mid { stroke: var(--mid); } .vx-ring-fill.low { stroke: var(--low); }
+.vx-ring div { display: flex; flex-direction: column; gap: 2px; }
+.vx-ring strong { font-size: 30px; font-weight: 600; line-height: 1; }
+.vx-ring span { color: var(--ink-2); font-size: 14px; }
+.vx-scores { display: grid; gap: 12px; padding: 16px 18px; border-radius: 16px; background: var(--tile); }
+.vx-score-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; font-size: 14px; }
+.vx-score-head strong { font-weight: 600; font-variant-numeric: tabular-nums; }
+.vx-bar { height: 8px; border-radius: 99px; background: var(--line-2); overflow: hidden; }
+.vx-bar i { display: block; height: 100%; border-radius: inherit; transition: width .8s var(--ease); }
+.vx-bar i.good { background: var(--good); } .vx-bar i.mid { background: var(--mid); } .vx-bar i.low { background: var(--low); }
+.vx-ba { display: grid; gap: 10px; }
+.vx-ba-item { display: grid; gap: 6px; padding: 14px 16px; border-radius: 16px; background: var(--tile); }
+.vx-ba-item p { margin: 0; font-size: 14.5px; line-height: 1.5; }
+.vx-ba-item p span { display: inline-block; min-width: 58px; margin-right: 8px; font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; }
+.vx-before { color: var(--ink-3); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--low) 70%, transparent); }
+.vx-before span { color: var(--low); text-decoration: none; }
+.vx-after span { color: var(--good); }
+.vx-why { color: var(--ink-3); font-size: 13.5px !important; }
+.vx-steps { display: grid; gap: 0; margin: 4px 0 16px; padding: 0; list-style: none; }
+.vx-steps li { position: relative; display: flex; gap: 14px; padding: 0 0 16px; }
+.vx-steps li:not(:last-child)::before { content: ""; position: absolute; left: 13px; top: 30px; bottom: 2px; width: 2px; background: var(--line-2); }
+.vx-steps b { width: 28px; height: 28px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 50%; color: var(--btn-ink); background: var(--btn); font-size: 13px; }
+.vx-steps div { display: flex; flex-direction: column; gap: 2px; padding-top: 3px; }
+.vx-steps strong { font-size: 14.5px; font-weight: 600; }
+.vx-steps span, .vx-card span { color: var(--ink-2); font-size: 14px; line-height: 1.5; }
+.vx-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.vx-card { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 16px; background: var(--tile); }
+.vx-card strong { font-size: 14.5px; font-weight: 600; }
+.vx-check { display: grid; gap: 6px; padding: 0; list-style: none; }
+.vx-check li { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; border-radius: 12px; background: var(--tile); font-size: 14.5px; line-height: 1.45; }
+.vx-check i { width: 20px; height: 20px; display: grid; place-items: center; flex: 0 0 auto; margin-top: 1px; border-radius: 50%; color: #fff; font-size: 12px; font-style: normal; font-weight: 700; }
+.vx-check li.ok i { background: var(--good); } .vx-check li.fix i { background: var(--mid); }
