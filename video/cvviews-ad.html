@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CVviews Ad</title>
+<style>
+@font-face { font-family: "Host Grotesk"; src: url("../public/fonts/host-grotesk-latin-wght-normal.woff2") format("woff2"); font-weight: 300 800; }
+@font-face { font-family: "Literata"; src: url("../public/fonts/literata-latin-opsz-normal.woff2") format("woff2"); font-weight: 200 900; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #111; overflow: hidden; }
+body { display: grid; place-items: center; font-family: "Host Grotesk", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+/* Um anúncio de marca, sem a app: uma noite antes da entrevista. Traços soltos e inquietos; a linha do Leo
+   passa e eles arrumam-se numa folha de CV, enquanto o escuro dá lugar à luz da manhã. Só tipografia e traço. */
+#stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; flex: none; background: #131313; transform-origin: center; }
+#art { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+.abs { position: absolute; will-change: transform, opacity; opacity: 0; }
+.line { left: 0; right: 0; text-align: center; font: 400 70px/1.15 "Literata"; letter-spacing: -1.2px; }
+.time { left: 0; right: 0; top: 500px; text-align: center; font: 400 34px "Host Grotesk"; letter-spacing: 6px; color: #8a8984; }
+.word { left: 1160px; font: 400 76px/1 "Literata"; letter-spacing: -1.5px; color: #1a1a19; }
+.word i { position: absolute; left: 0; bottom: -18px; height: 3px; width: 100%; border-radius: 2px; background: #1a1a19; transform-origin: left; }
+.mark { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="art" width="1920" height="1080"></canvas>
+
+  <div class="abs time" id="clock">23:47</div>
+  <div class="abs line" id="l1" style="top:470px;color:#ecebe6">O CV ainda não está pronto.</div>
+  <div class="abs line" id="l2" style="top:470px;color:#ecebe6">E a entrevista é amanhã.</div>
+
+  <svg class="abs mark" id="sweep" viewBox="0 0 40 24" style="left:210px;top:330px;width:1500px;height:420px;color:#ecebe6;opacity:1" stroke-width=".55" preserveAspectRatio="none"><path pathLength="1" d="M2 17c3-1 4-9 7-9s1 9 4 9 3-11 7-11-1 11 3 11 3-7 6-7 2 6 5 6 3-3 4-4"/></svg>
+
+  <div class="abs line" id="l3" style="top:968px;color:#1a1a19;font-size:44px">Não tens de fazer isto sozinho.</div>
+  <div class="abs word" id="w1" style="top:340px">Corrige.<i></i></div>
+  <div class="abs word" id="w2" style="top:480px">Melhora.<i></i></div>
+  <div class="abs word" id="w3" style="top:620px">Prepara a entrevista.<i></i></div>
+
+  <div class="abs" id="outro" style="left:0;right:0;top:400px;text-align:center;color:#1a1a19;opacity:0">
+    <div style="display:flex;justify-content:center;align-items:center;gap:36px">
+      <svg class="mark" id="m2" viewBox="0 0 40 24" style="width:140px;height:84px" stroke-width="2.2"><path pathLength="1" d="M2 17c3-1 4-9 7-9s1 9 4 9 3-11 7-11-1 11 3 11 3-7 6-7 2 6 5 6 3-3 4-4"/></svg>
+      <span style="font:400 120px/1 'Literata';letter-spacing:-4px">CVviews</span>
+    </div>
+    <div id="tag" style="margin-top:36px;font:400 34px 'Host Grotesk';color:#6f6e69">O teu próximo emprego começa aqui.</div>
+  </div>
+</div>
+
+<script>
+const DURATION = 30;
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, x) => a + (b - a) * x;
+const ease = (x) => (x < .5 ? 4 * x ** 3 : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const out = (x) => 1 - Math.pow(1 - x, 3);
+const mix = (c1, c2, k) => c1.map((v, i) => Math.round(lerp(v, c2[i], k)));
+const NIGHT = [19, 19, 19], DAY = [236, 235, 230], INK_N = [236, 235, 230], INK_D = [26, 26, 25], GREEN = [47, 158, 99];
+
+// ---------------- A folha de CV, feita de traços ----------------
+let seed = 7;
+const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const segs = [];
+const line = (x0, y0, x1, y1, w = 1.6, fill = .9, density = 1, group = '') => segs.push({ x0, y0, x1, y1, w, fill, density, group });
+const W = .5, H = .65;
+line(-W, -H, W, -H, 1.2, .5, .5); line(W, -H, W, H, 1.2, .5, .5); line(W, H, -W, H, 1.2, .5, .5); line(-W, H, -W, -H, 1.2, .5, .5);
+const cx = -.3, cy = -.47, r = .1;
+for (let i = 0; i < 18; i++) { const a0 = i / 18 * Math.PI * 2, a1 = (i + 1) / 18 * Math.PI * 2; line(cx + Math.cos(a0) * r, cy + Math.sin(a0) * r, cx + Math.cos(a1) * r, cy + Math.sin(a1) * r, 1.8, .85, 1.4); }
+line(-.13, -.51, .36, -.51, 4, .96, 1.3); line(-.13, -.43, .16, -.43, 1.6); line(-.42, -.31, .42, -.31, 1.1, .96, .6);
+line(-.42, -.23, -.24, -.23, 2.8);
+for (const [y, len] of [[-.15, .24], [-.09, .18], [-.03, .21], [.03, .14]]) { line(-.42, y, -.16, y, 1.1, .96, .5); line(-.42, y, -.42 + len, y, 3); }
+line(-.42, .14, -.26, .14, 2.8);
+for (const [y, len] of [[.21, .24], [.27, .2], [.33, .25], [.39, .17], [.45, .22]]) line(-.42, y, -.42 + len, y, 1.5);
+line(-.04, -.23, .2, -.23, 2.8);
+for (const [y, len, g] of [[-.16, .46, 'fix1'], [-.1, .44, ''], [-.04, .46, ''], [.02, .3, '']]) line(-.04, y, -.04 + len, y, 1.5, .9, 1, g);
+line(-.04, .11, .24, .11, 2.8);
+for (const [y, len, g] of [[.18, .4, ''], [.24, .36, 'fix2'], [.31, .42, ''], [.37, .3, ''], [.44, .38, ''], [.5, .26, '']]) { line(-.04, y, -.025, y, 3, 1, 2.5); line(0, y, len, y, 1.5, .9, 1, g); }
+
+const COUNT = 520;
+const segLen = (s) => Math.hypot(s.x1 - s.x0, s.y1 - s.y0);
+const weight = segs.reduce((sum, s) => sum + segLen(s) * s.density, 0);
+const slots = [];
+for (const s of segs) {
+  const k = Math.max(1, Math.round(COUNT * segLen(s) * s.density / weight));
+  for (let i = 0; i < k; i++) { const tt = (i + .5) / k; slots.push({ u: s.x0 + (s.x1 - s.x0) * tt, v: s.y0 + (s.y1 - s.y0) * tt, len: segLen(s) / k * s.fill, ang: Math.atan2(s.y1 - s.y0, s.x1 - s.x0), w: s.w, group: s.group }); }
+}
+for (let i = slots.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [slots[i], slots[j]] = [slots[j], slots[i]]; }
+const dashes = slots.map((s) => ({
+  ...s,
+  x: 120 + rnd() * 1680, y: 80 + rnd() * 920,             // soltos por todo o ecrã
+  a: rnd() * Math.PI, spin: (rnd() - .5) * .9, l: 6 + rnd() * 12,
+  ph: rnd() * Math.PI * 2, delay: rnd() * .45, alpha: .35 + rnd() * .55,
+}));
+
+const ctx = $('art').getContext('2d');
+const PAGE_H = 790;   // a folha (altura 1.3) ocupa isto em px
+
+function drawArt(t) {
+  // a manhã: a luz nasce no centro e alarga-se até cobrir o ecrã (nunca passa por um cinzento)
+  const R = lerp(0, 1320, ease(prog(t, 10.9, 13.8))), EDGE = 160;
+  ctx.fillStyle = `rgb(${NIGHT})`;
+  ctx.fillRect(0, 0, 1920, 1080);
+  if (R > 0) {
+    const grad = ctx.createRadialGradient(960, 540, Math.max(0, R - EDGE), 960, 540, R);
+    grad.addColorStop(0, `rgb(${DAY})`); grad.addColorStop(1, `rgba(${DAY},0)`);
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, 1920, 1080);
+  }
+  // inquietação: devagar no início, mais agitada quando chega a entrevista, nenhuma depois de arrumar
+  const unrest = lerp(.35, 1, ease(prog(t, 5.6, 8.6))) * (1 - ease(prog(t, 9.6, 11.0)));
+  const show = ease(prog(t, 1.0, 3.0));
+  const scale = PAGE_H / 1.3;
+  // a folha está ao centro e depois encosta-se à esquerda para dar lugar às palavras
+  const px = lerp(960, 640, ease(prog(t, 16.6, 17.8))) , py = 540;
+  const pageOut = ease(prog(t, 24.2, 25.4));
+  const tilt = -.04;
+  ctx.lineCap = 'round';
+  for (const d of dashes) {
+    const g = ease(clamp((t - 10.4 - d.delay * 2.4) / 2.6));
+    const jitter = unrest * 14;
+    const fx = d.x + Math.sin(t * (1.1 + unrest * 2.2) + d.ph) * (10 + jitter) + Math.sin(t * 7.3 + d.ph * 3) * unrest * 3;
+    const fy = d.y + Math.cos(t * (0.9 + unrest * 2) + d.ph) * (10 + jitter) + Math.cos(t * 6.1 + d.ph * 2) * unrest * 3;
+    const tx = px + (d.u * Math.cos(tilt) - d.v * Math.sin(tilt)) * scale;
+    const ty = py + (d.u * Math.sin(tilt) + d.v * Math.cos(tilt)) * scale;
+    const x = lerp(fx, tx, g), y = lerp(fy, ty, g);
+    const free = d.a + t * d.spin * (1 + unrest * 1.5);
+    const goal = tilt + d.ang;
+    const target = goal + Math.PI * Math.round((free - goal) / Math.PI);
+    const a = lerp(free, target, g);
+    const len = lerp(d.l, d.len * scale, g);
+    const inLight = clamp((R - EDGE * .5 - Math.hypot(x - 960, y - 540)) / (EDGE * .5));
+    let ink = mix(INK_N, INK_D, inLight);
+    if (d.group === 'fix1') ink = mix(ink, GREEN, ease(prog(t, 18.7, 19.4)));
+    if (d.group === 'fix2') ink = mix(ink, GREEN, ease(prog(t, 20.6, 21.3)));
+    const alpha = lerp(d.alpha, .92, g) * show * (1 - pageOut);
+    ctx.strokeStyle = `rgba(${ink},${alpha})`;
+    ctx.lineWidth = lerp(1.6, d.w, g);
+    const hx = Math.cos(a) * len / 2, hy = Math.sin(a) * len / 2;
+    ctx.beginPath(); ctx.moveTo(x - hx, y - hy); ctx.lineTo(x + hx, y + hy); ctx.stroke();
+  }
+}
+
+function life(t, a, b, fin = .7, fout = .6) { return t < a || t > b ? 0 : Math.min(ease(prog(t, a, a + fin)), 1 - ease(prog(t, b - fout, b))); }
+function text(id, t, a, b, dy = 12) {
+  const el = $(id);
+  el.style.opacity = life(t, a, b);
+  el.style.transform = `translateY(${(1 - out(prog(t, a, a + 1))) * dy}px)`;
+}
+function word(id, t, a, b) {
+  text(id, t, a, b, 16);
+  $(id).querySelector('i').style.transform = `scaleX(${ease(prog(t, a + .3, a + 1.0))})`;
+}
+function draw(svg, t, a, b) { const p = svg.querySelector('path'); p.style.strokeDasharray = 1; p.style.strokeDashoffset = 1 - ease(prog(t, a, b)); }
+
+function render(t) {
+  drawArt(t);
+  text('clock', t, .3, 2.6);
+  text('l1', t, 2.7, 5.6);
+  text('l2', t, 5.9, 8.9);
+  // a linha do Leo atravessa o ecrã e, ao passar, desfaz-se nos traços que se arrumam
+  const sw = $('sweep');
+  draw(sw, t, 9.1, 10.7);
+  sw.style.opacity = t < 9.1 ? 0 : 1 - ease(prog(t, 10.6, 11.6));
+  text('l3', t, 14.8, 16.6);
+  word('w1', t, 18.0, 24.2);
+  word('w2', t, 19.9, 24.2);
+  word('w3', t, 21.8, 24.2);
+  // fim: a marca, sem mais nada
+  const o = $('outro');
+  o.style.opacity = life(t, 25.6, DURATION, .8, .01);
+  draw($('m2'), t, 25.7, 27.0);
+  o.querySelector('span').style.opacity = ease(prog(t, 26.4, 27.3));
+  $('tag').style.opacity = ease(prog(t, 27.4, 28.3));
+}
+
+window.render = render;
+window.DURATION = DURATION;
+
+const params = new URLSearchParams(location.search);
+if (!params.has('capture')) {
+  const fit = () => { const s = Math.min(innerWidth / 1920, innerHeight / 1080); $('stage').style.transform = `scale(${s})`; };
+  addEventListener('resize', fit); fit();
+  document.fonts.ready.then(() => {
+    if (params.has('t')) return render(+params.get('t'));
+    const start = performance.now();
+    const loop = (now) => { render(((now - start) / 1000) % DURATION); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  });
+}
+</script>
+</body>
+</html>

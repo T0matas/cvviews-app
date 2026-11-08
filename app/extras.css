@@ -312,3 +312,28 @@ img.avatar { object-fit: cover; border: 0; }
   .stat-card { padding: 14px 16px; }
   .stat-card strong { font-size: 34px; }
 }
+
+/* ---- Mais blocos visuais nas respostas: destaque, barras, linha do tempo, árvore e fluxo ---- */
+.prose .vx { margin: 6px 0 18px; }
+.vx-key { display: flex; flex-direction: column; gap: 6px; padding: 18px 20px; border-radius: 16px; background: var(--tile); border-left: 3px solid var(--ink); }
+.vx-key strong { font-family: var(--serif); font-size: 24px; font-weight: 500; line-height: 1.3; letter-spacing: -.2px; }
+.vx-key span { color: var(--ink-2); font-size: 14.5px; line-height: 1.5; }
+.vx-bars { display: grid; gap: 10px; padding: 16px 18px; border-radius: 16px; background: var(--tile); }
+.vx-barrow { display: grid; grid-template-columns: minmax(80px, 30%) 1fr auto; align-items: center; gap: 12px; font-size: 14px; }
+.vx-barrow .vx-bar i { background: var(--ink); }
+.vx-barrow strong { min-width: 34px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.vx-barlabel { overflow: hidden; color: var(--ink-2); white-space: nowrap; text-overflow: ellipsis; }
+.vx-time { position: relative; display: grid; gap: 14px; margin: 6px 0 18px; padding: 4px 0 4px 26px; list-style: none; }
+.vx-time::before { content: ""; position: absolute; left: 6px; top: 10px; bottom: 10px; width: 2px; border-radius: 2px; background: var(--line-2); }
+.vx-time li { position: relative; display: flex; flex-direction: column; gap: 2px; }
+.vx-time li::before { content: ""; position: absolute; left: -25px; top: 6px; width: 12px; height: 12px; border-radius: 50%; background: var(--bg); border: 2px solid var(--ink); }
+.vx-time b { font-size: 13px; font-weight: 600; letter-spacing: .04em; color: var(--ink-2); }
+.vx-time span { font-size: 15px; line-height: 1.5; }
+.vx-tree { margin: 6px 0 18px; padding: 14px 18px; border-radius: 16px; background: var(--tile); list-style: none; }
+.vx-tree li { position: relative; padding: 4px 0 4px calc(var(--d) * 26px); font-size: 14.5px; }
+.vx-tree li:not(.root)::before { content: ""; position: absolute; left: calc(var(--d) * 26px - 16px); top: 0; height: 50%; width: 11px; border-left: 1.5px solid var(--line-2); border-bottom: 1.5px solid var(--line-2); border-bottom-left-radius: 6px; }
+.vx-tree li span { display: inline-block; padding: 3px 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); }
+.vx-tree li.root span { font-weight: 600; border-color: var(--line-2); }
+.vx-flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.vx-flow span { padding: 9px 14px; border-radius: 12px; background: var(--tile); font-size: 14.5px; line-height: 1.35; }
+.vx-flow i { color: var(--ink-3); font-style: normal; }

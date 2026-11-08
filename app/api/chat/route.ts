@@ -16,10 +16,11 @@ const docBlock = (text: string, name: string) =>
 // E o Leo faz o que a pessoa pede com ele: "faz" responde a todas as perguntas.
 const DOC_TASK = `Documento anexado (não é um CV): pode ser um trabalho, uma ficha, um teste, um enunciado ou outro texto. Faz exatamente o que a pessoa pede com ele.
 - Se ela pedir para fazer, responder, resolver ou completar ("faz", "responde", "resolve"), ou só anexar o documento sem dizer mais nada e ele tiver perguntas, responde a TODAS as perguntas e exercícios, pela ordem e com a mesma numeração do documento, sem saltar nenhuma.
-- Para cada uma: o número e a pergunta resumida em **negrito**, e logo a seguir a resposta completa e correta. Em cálculos e problemas, mostra os passos; em perguntas de desenvolvimento, escreve a resposta como se fosse entregue (frases completas, bem estruturadas).
+- Para cada uma: o número e a pergunta resumida como título curto (### P1. ...), e logo a seguir a resposta completa e correta. Em cálculos e problemas, mostra os passos; em perguntas de desenvolvimento, escreve a resposta como se fosse entregue (frases completas, bem estruturadas).
 - Escolhas múltiplas: indica a opção certa e explica numa frase porquê. Verdadeiro/falso: diz qual é e corrige as falsas.
 - Se uma pergunta depender de algo que não está no texto (uma imagem, um gráfico, um texto de apoio em falta), diz o que falta e responde ao resto.
-- Aqui não uses os blocos visuais nem ligues a resposta a CVs ou carreira.
+- Segue a proporção de 40% texto e 60% visual: em cada pergunta, uma ou duas frases e depois o visual que melhor mostra a resposta (destaque para a resposta curta, tabela para comparar, barras para valores, linha-tempo para datas, arvore para hierarquias como classes e subclasses, fluxo para causas e consequências, passos para resoluções passo a passo). Código fica em blocos de código; tabelas nunca vão dentro de blocos de código.
+- Não ligues a resposta a CVs ou carreira.
 - Responde na língua do documento, salvo se a pessoa ou as Configurações pedirem outra.`;
 
 
@@ -92,6 +93,27 @@ ${HUMAN_STYLE}
 ${REWRITE_RULES}`,
 };
 
+// Lembrete no fim da conversa (os modelos dão mais peso ao que vem por último): a resposta a um documento
+// é 40% texto e 60% visual, com um exemplo do formato.
+const FENCE = '```';
+const DOC_FORMAT = `Formato obrigatório desta resposta (40% texto, 60% visual):
+- Cada pergunta tem um título curto (### P1. ...), uma ou duas frases e logo a seguir pelo menos um bloco visual ou uma tabela.
+- Mais de metade da resposta tem de estar em blocos visuais e tabelas. Listas longas de marcadores não contam como visual: transforma-as numa tabela ou num bloco.
+- Se a pessoa pede uma tabela, ou o documento tem uma tabela para preencher, responde com essa tabela em Markdown direto (nunca dentro de um bloco de código), com todas as células preenchidas.
+- Escolhe o visual certo: destaque (a resposta curta), tabela (várias coisas com os mesmos campos), barras (valores numéricos), linha-tempo (datas), arvore (hierarquias, como classes e subclasses), fluxo (causa e efeito, ou o que acontece por ordem), passos (uma resolução passo a passo).
+Exemplo do formato:
+### P1. Que valor fica em x?
+O ciclo corre três vezes e soma 2 de cada vez.
+${FENCE}destaque
+x = 6
+Começa em 0 e soma 2 em cada uma das três voltas.
+${FENCE}
+| Volta | x antes | x depois |
+|---|---|---|
+| 1 | 0 | 2 |
+| 2 | 2 | 4 |
+| 3 | 4 | 6 |`;
+
 // A língua escolhida nas Configurações vem por último, para valer sobre a regra de pt-PT.
 const LANG_NOTE: Record<string, string> = {
   'pt-PT': '',
@@ -153,7 +175,7 @@ export async function POST(request: Request) {
 
 ${today(web)}${memoryNote(body.memory, last.text, history.some((m) => m.attachments?.some((f) => f.data?.trim())))}${hasDoc ? `
 
-${DOC_TASK}` : ""}${LANG_NOTE[body.lang ?? "pt-PT"] ?? ""}` }, ...turns, ...(LANG_NOTE[body.lang ?? "pt-PT"] ? [{ role: "system", content: LANG_NOTE[body.lang!].trim() }] : [])],
+${DOC_TASK}` : ""}${LANG_NOTE[body.lang ?? "pt-PT"] ?? ""}` }, ...turns, ...(hasDoc ? [{ role: "system", content: DOC_FORMAT }] : []), ...(LANG_NOTE[body.lang ?? "pt-PT"] ? [{ role: "system", content: LANG_NOTE[body.lang!].trim() }] : [])],
         }, request.signal);
 
         // O texto sai uma palavra atrás do modelo, para o humanize() ver um travessão junto

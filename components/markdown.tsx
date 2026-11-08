@@ -33,6 +33,12 @@ function parseBlocks(text: string): ReactNode[] {
       i++;
       while (i < lines.length && !lines[i].startsWith('```')) code.push(lines[i++]);
       i++;
+      // Uma tabela Markdown que o modelo meteu dentro de um bloco de código desenha-se como tabela a sério.
+      const tableInside = code.findIndex((l, k) => l.trim().startsWith('|') && /^\s*\|?\s*:?-{2,}/.test(code[k + 1] ?? ''));
+      if (tableInside >= 0 && !['js', 'ts', 'java', 'python', 'py', 'c', 'cpp', 'html', 'css', 'sql', 'json'].includes(lang.toLowerCase())) {
+        for (const node of parseBlocks(code.join('\n'))) blocks.push(<Fragment key={blocks.length}>{node}</Fragment>);
+        continue;
+      }
       const shown = visual(lang, code, blocks.length);
       blocks.push(shown ?? <pre key={blocks.length} data-lang={lang || undefined}><code>{code.join('\n')}</code></pre>);
       continue;
@@ -104,8 +110,12 @@ const pairsOf = (lines: string[]) => lines.map((l) => l.trim()).filter(Boolean).
   return at < 0 ? [l, ''] : [l.slice(0, at).trim(), l.slice(at + 1).trim()];
 });
 
+// Nomes que o modelo às vezes inventa para "a resposta em destaque".
+const KEY_ALIASES = new Set(['texto', 'resposta', 'nota', 'resultado', 'conclusao', 'resumo', 'answer']);
+
 function visual(lang: string, lines: string[], key: number): ReactNode | null {
-  const kind = lang.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+  let kind = lang.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+  if (KEY_ALIASES.has(kind)) kind = 'destaque';
   if (kind === 'pontuacao') {
     const rows = lines.map((l) => /^(.+?)\s*[:|]\s*(\d{1,3})(?:\s*\/\s*100)?\s*%?\s*$/.exec(l.trim())).filter((m): m is RegExpExecArray => Boolean(m))
       .map((m) => ({ label: m[1].trim(), value: Math.max(0, Math.min(100, Number(m[2]))) }));
@@ -175,6 +185,65 @@ function visual(lang: string, lines: string[], key: number): ReactNode | null {
       </div>
     );
   }
+  // A resposta-chave, em grande: a primeira linha é a resposta, as seguintes explicam.
+  if (kind === 'destaque') {
+    const rows = lines.map((l) => l.trim()).filter(Boolean);
+    if (!rows.length) return null;
+    return (
+      <div className="vx vx-key" key={key}>
+        <strong>{inline(rows[0])}</strong>
+        {rows.slice(1).map((r, n) => <span key={n}>{inline(r)}</span>)}
+      </div>
+    );
+  }
+  // Valores para comparar (qualquer número, com unidade opcional): barras proporcionais ao maior.
+  if (kind === 'barras') {
+    const rows = lines.map((l) => /^(.+?)\s*[:|]\s*(-?\d+(?:[.,]\d+)?)\s*(.*)$/.exec(l.trim())).filter((m): m is RegExpExecArray => Boolean(m))
+      .map((m) => ({ label: m[1].trim(), value: Number(m[2].replace(',', '.')), unit: m[3].trim() }));
+    if (!rows.length) return null;
+    const max = Math.max(...rows.map((r) => Math.abs(r.value)), 1e-9);
+    return (
+      <div className="vx vx-bars" key={key}>
+        {rows.map(({ label, value, unit }, n) => (
+          <div className="vx-barrow" key={n}>
+            <span className="vx-barlabel">{inline(label)}</span>
+            <div className="vx-bar"><i style={{ width: `${Math.max(3, (Math.abs(value) / max) * 100)}%` }} /></div>
+            <strong>{String(value).replace('.', ',')}{unit ? ` ${unit}` : ''}</strong>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  // Datas ou etapas ao longo do tempo.
+  if (kind === 'linha-tempo' || kind === 'cronologia') {
+    const rows = pairsOf(lines);
+    if (!rows.length) return null;
+    return (
+      <ol className="vx vx-time" key={key}>
+        {rows.map(([when, what], n) => <li key={n}><b>{inline(when)}</b><span>{inline(what)}</span></li>)}
+      </ol>
+    );
+  }
+  // Uma hierarquia (classes, conceitos, partes de um todo): a indentação diz quem está dentro de quem.
+  if (kind === 'arvore') {
+    const rows = lines.filter((l) => l.trim()).map((l) => ({ depth: Math.floor((l.match(/^\s*/)?.[0].length ?? 0) / 2), text: l.trim().replace(/^[-*]\s+/, '') }));
+    if (!rows.length) return null;
+    return (
+      <ul className="vx vx-tree" key={key}>
+        {rows.map(({ depth, text }, n) => <li key={n} style={{ '--d': depth } as React.CSSProperties} className={depth ? '' : 'root'}><span>{inline(text)}</span></li>)}
+      </ul>
+    );
+  }
+  // Causa e efeito, ou um processo curto: passos ligados por setas ("A -> B -> C", ou um por linha).
+  if (kind === 'fluxo') {
+    const steps = lines.join(' -> ').split(/\s*(?:->|→)\s*/).map((s) => s.trim()).filter(Boolean);
+    if (steps.length < 2) return null;
+    return (
+      <div className="vx vx-flow" key={key}>
+        {steps.map((s, n) => <Fragment key={n}>{n > 0 && <i aria-hidden="true">→</i>}<span>{inline(s)}</span></Fragment>)}
+      </div>
+    );
+  }
   if (kind === 'checklist') {
     const rows = lines.map((l) => /^\s*([+\-xX✓✗])\s+(.*)$/.exec(l)).filter((m): m is RegExpExecArray => Boolean(m));
     if (!rows.length) return null;
@@ -188,6 +257,8 @@ function visual(lang: string, lines: string[], key: number): ReactNode | null {
 }
 
 function inline(text: string): ReactNode[] {
+  // "<br>" escrito pelo modelo (sobretudo dentro de tabelas) vira uma quebra de linha a sério
+  if (/<br\s*\/?>/i.test(text)) return text.split(/<br\s*\/?>/i).map((part, n) => <Fragment key={`p${n}`}>{n > 0 && <br />}{inline(part)}</Fragment>);
   const out: ReactNode[] = [];
   const pattern = /(`[^`]+`|\*\*[^*]+\*\*|__[^_]+__|\*[^*\s][^*]*\*|_[^_\s][^_]*_|\[[^\]]+\]\((https?:\/\/[^)\s]+)\))/g;
   let last = 0;

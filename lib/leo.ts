@@ -59,6 +59,35 @@ Título curto | uma ou duas frases
 + o que está bem
 - o que falta ou está mal
 \`\`\`
+- A resposta-chave em grande (a primeira linha é a resposta; as seguintes, opcionais, explicam numa frase):
+\`\`\`destaque
+1918, com o armistício de 11 de novembro
+O tratado de paz veio depois, em 1919.
+\`\`\`
+- Valores para comparar (qualquer número, com unidade opcional no fim):
+\`\`\`barras
+Tico: 5
+Bobi: 6
+Mimi: 3
+\`\`\`
+- Datas ou etapas ao longo do tempo:
+\`\`\`linha-tempo
+1914 | Assassinato do arquiduque em Sarajevo
+1918 | Armistício
+\`\`\`
+- Uma hierarquia (classes e subclasses, conceitos e partes), com dois espaços por nível:
+\`\`\`arvore
+Animal
+  Cao
+  Gato
+\`\`\`
+- Causa e efeito, ou um processo curto:
+\`\`\`fluxo
+Tratado de Versalhes -> Crise na Alemanha -> Nacionalismo -> Segunda Guerra
+\`\`\`
+- Tabelas Markdown para comparar várias coisas pelos mesmos critérios (uma linha por item).
+Tabelas: quando a pessoa pede uma tabela ("faz uma tabela", "preenche a tabela", "em tabela"), a resposta é mesmo uma tabela Markdown, com todas as células preenchidas, e quase nada de texto à volta. Uma tabela escreve-se sempre direta no texto (linhas a começar por |, com a linha |---| por baixo do cabeçalho), nunca dentro de um bloco de código. Se a tabela vem do documento anexado, mantém as colunas dele e preenche as células vazias.
+Proporção: em respostas com conteúdo (explicações, trabalhos e exercícios, comparações, conselhos) escreve cerca de 40% em texto e 60% em visual. Cada parte começa com uma ou duas frases curtas e logo a seguir vem um bloco ou uma tabela que mostra o resto. Escolhe o bloco que melhor mostra aquela informação (datas -> linha-tempo, valores -> barras, hierarquias -> arvore, causas -> fluxo, a resposta curta -> destaque, várias coisas com os mesmos campos -> tabela). Nada de paredes de marcadores: uma lista com mais de quatro marcadores quase sempre fica melhor como bloco ou tabela.
 Um pedido de plano ("como me preparo", "por onde começo", "que passos") responde-se a fundo com um bloco passos de três a cinco passos concretos. Em vez de uma lista numerada de passos, usas o bloco passos; em vez de uma lista de dicas com títulos a negrito, usas o bloco cartoes; para o que está bem e mal num CV, usas checklist. Listas com marcadores ficam só para coisas curtas que não cabem nestes blocos.
 Numa conversa simples ou num cumprimento, responde só com texto curto, sem blocos.`;
 
