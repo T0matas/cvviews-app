@@ -22,6 +22,7 @@ import { readImage, readOriginal, readPdf, readWord, toBase64 } from '@/lib/read
 import { isCvReview } from '@/lib/cv-detect';
 import { type FullCv, type Review, reviewSummary } from '@/lib/review';
 import { useRecorder } from '@/lib/use-recorder';
+import { tapHaptic } from '@/lib/haptics';
 import { SEARCH_SIGNAL, type Attachment, type ChatRequest, type Conversation, type Message, type Mode } from '@/lib/types';
 
 // As conversas de quem não entrou ficam na chave antiga; as de cada conta, numa chave com o uid.
@@ -422,6 +423,7 @@ export default function ChatApp() {
     const text = (textOverride ?? draft).trim();
     if ((!text && !pending.length) || isStreaming) return;
     if (pending.some((f) => f.reading)) return setNotice('Espera um instante, ainda estou a ler o ficheiro.');
+    void tapHaptic();
 
     const userMessage: Message = {
       id: uid(),

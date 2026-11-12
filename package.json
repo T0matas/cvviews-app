@@ -8,6 +8,8 @@
     "start": "next start --port 3100"
   },
   "dependencies": {
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/haptics": "^8.0.2",
     "firebase": "^13.2.0",
     "lucide-react": "^0.468.0",
     "mammoth": "^1.13.0",
