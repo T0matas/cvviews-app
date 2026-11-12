@@ -48,3 +48,15 @@ Sem chave, o app responde em modo demonstração. Os PDFs são lidos no servidor
 - `app/manifest.ts`, `public/sw.js` — instalação como app
 
 Para a entrada com o Google funcionar num endereço publicado, adiciona esse domínio em Firebase → Authentication → Definições → Domínios autorizados (o `localhost` já lá está).
+
+## App iOS com vibração háptica
+
+O projeto iOS usa Capacitor e abre `https://cvviews.me` numa WebView nativa. A vibração háptica é acionada ao enviar uma mensagem. Para compilar e instalar num iPhone, é necessário um Mac com Xcode e uma conta Apple configurada para assinatura:
+
+```bash
+npm install
+npx cap sync ios
+npx cap open ios
+```
+
+No Xcode, seleciona a equipa de assinatura, liga o iPhone, escolhe-o como destino e carrega em Run. O Safari e a PWA continuam sem acesso à vibração genérica do iPhone; o feedback háptico funciona na app nativa.
