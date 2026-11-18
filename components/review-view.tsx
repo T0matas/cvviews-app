@@ -173,7 +173,8 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
         setUnplaced(result.unplaced);
         if (result.corrected.length) setFixedShots(result.corrected.map((c) => c.toDataURL('image/jpeg', 1)));
         if (!result.marks) throw new Error('nenhuma citação encontrada na página');
-        setShots(result.pages.map((c) => c.toDataURL('image/jpeg', 0.97)));
+        // a versão marcada em PNG (sem perdas): as letras e as notas ficam nítidas
+        setShots(result.pages.map((c) => c.toDataURL('image/png')));
       } catch (err) {
         console.warn('[cv marcado]', err);
         setDrawFailed(true);
@@ -219,7 +220,7 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
       {shots ? (
         <div className="cvshot">
           {shots.map((src, i) => <figure className="cvshot-page" key={i}><img src={src} alt={`Página ${i + 1} do teu CV, com as correções desenhadas por cima`} /></figure>)}
-          <p className="cvmark-act">{shots.map((src, i) => <button type="button" className="text-act" key={i} onClick={() => download(src, `${base}-revisto${shots.length > 1 ? `-${i + 1}` : ''}.jpg`)}><Download size={14} />Descarregar{shots.length > 1 ? ` a página ${i + 1}` : ' esta versão'}</button>)}</p>
+          <p className="cvmark-act">{shots.map((src, i) => <button type="button" className="text-act" key={i} onClick={() => download(src, `${base}-revisto${shots.length > 1 ? `-${i + 1}` : ''}.png`)}><Download size={14} />Descarregar{shots.length > 1 ? ` a página ${i + 1}` : ' esta versão'}</button>)}</p>
         </div>
       ) : visual && !drawFailed ? (
         <div className="cvshot-wait"><span className="cvshot-dot" aria-hidden="true" />{step}…</div>

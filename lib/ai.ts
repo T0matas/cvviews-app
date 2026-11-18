@@ -43,14 +43,16 @@ export async function imageToText(dataUrl: string, signal?: AbortSignal) {
     messages: [{
       role: 'user',
       content: [
-        { type: 'text', text: 'Transcribe all the text of the CV page in this image exactly as written, once, keeping the line breaks and section order. Leave out text outside the page (captions, labels or watermarks around it). Output only the text, nothing else. If the image has no readable text, output NO_TEXT.' },
+        { type: 'text', text: `Read this image for an assistant that will answer questions about it.
+- If it is mainly a document (a CV, a worksheet, a page, a form, a letter): transcribe all its text exactly as written, once, keeping the line breaks and section order. Leave out text outside the page (captions, labels or watermarks around it). Output only the text.
+- If it is anything else (a photo, a chart, a diagram, a drawing, a screenshot of an app or website, an object, a person, a place): first transcribe any readable text (if there is some), then write a line "Descrição da imagem:" followed by a detailed, factual description in European Portuguese: what it shows, the people or objects and what they are doing, every number, label and value in charts or tables, colours, layout and anything notable. Do not guess identities of real people.` },
         { type: 'image_url', image_url: { url: dataUrl } },
       ],
     }],
   }, signal);
   const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
   const text = String(data.choices?.[0]?.message?.content || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-  return text === 'NO_TEXT' ? '' : cleanTranscript(text);
+  return text === 'NO_TEXT' ? '' : cleanTranscript(text);   // (o pedido já não usa NO_TEXT, mas um modelo antigo pode responder assim)
 }
 
 // O modelo de visão às vezes fica preso: transcreve a página toda uma segunda vez e depois repete a mesma linha
@@ -79,7 +81,7 @@ export function cleanTranscript(text: string) {
 // gpt-oss pensa antes de responder e isso conta para o limite por minuto; um pensamento leve chega.
 export const REASONING = PROVIDER.name === 'Groq' ? { reasoning_effort: process.env.GROQ_REASONING || 'low' } : {};
 
-export const HUMAN_STYLE = `Escreve sempre em português de Portugal (pt-PT), nunca em português do Brasil, com a ortografia atual (Acordo Ortográfico de 1990): "exatidão", "ação", "direção", "ótimo", não "exactidão", "acção", "direcção", "óptimo".
+export const HUMAN_STYLE = `Responde sempre na língua em que a pessoa te escreve. Quando escreves em português, é português de Portugal (pt-PT), nunca português do Brasil, com a ortografia atual (Acordo Ortográfico de 1990): "exatidão", "ação", "direção", "ótimo", não "exactidão", "acção", "direcção", "óptimo".
 Trata a pessoa por "tu" e usa o vocabulário de Portugal: "equipa", "ficheiro", "ecrã", "telemóvel", "utilizador", "candidatura", "contacto", "facto", "programador" (não "desenvolvedor").
 Escreve como um recrutador atento e simpático fala com alguém do outro lado da mesa: palavras simples, frases curtas, concreto sobre esta pessoa e nada genérico.
 Nunca uses travessões (— ou –); usa vírgulas, pontos ou parênteses.

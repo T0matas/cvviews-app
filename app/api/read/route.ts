@@ -6,7 +6,8 @@ export const maxDuration = 120;
 const MAX_IMAGES = 4;
 const IMAGE = /^data:image\/(jpeg|png|webp);base64,/;
 
-// Transcreve fotografias de um CV, ou as páginas de um PDF feito de imagens, com o modelo de visão.
+// Lê qualquer imagem com o modelo de visão: o texto de um documento (um CV, uma ficha, as páginas de um PDF feito de
+// imagens), ou o texto que houver mais uma descrição detalhada de uma fotografia, de um gráfico ou de um desenho.
 export async function POST(request: Request) {
   if (!hasKey()) return Response.json({ error: 'Ler imagens precisa da GROQ_API_KEY.' }, { status: 503 });
   try {
@@ -19,7 +20,7 @@ export async function POST(request: Request) {
     const pages: string[] = [];
     for (const src of list) pages.push(await imageToText(src, request.signal));
     const text = pages.filter(Boolean).join('\n\n').trim();
-    if (text.length < 40) return Response.json({ error: 'Não encontrei texto legível. Experimenta uma fotografia mais nítida.' }, { status: 422 });
+    if (text.length < 10) return Response.json({ error: 'Não consegui ler esta imagem. Experimenta outra, mais nítida.' }, { status: 422 });
     return Response.json({ text });
   } catch (error) {
     return Response.json({ error: friendlyError(error) }, { status: 502 });

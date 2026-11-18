@@ -3,9 +3,9 @@
 import { type ChangeEvent, type CSSProperties, type DragEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import {
-  ArrowDown, ArrowUp, BriefcaseBusiness, Check, ChevronDown, ChevronRight, Copy, FileText, Globe, Image as ImageIcon, ListChecks, Loader2, LogIn, LogOut, MessageSquareText,
-  Mic, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings as Gear, Settings2,
-  Square, SquarePen, ThumbsDown, ThumbsUp, Trash2, UserRound, UsersRound, X,
+  ArrowDown, ArrowUp, BriefcaseBusiness, Check, ChevronDown, ChevronLeft, ChevronRight, Copy, FileText, Globe, Image as ImageIcon, ListChecks, Loader2, LogIn, LogOut, MessageSquareText,
+  Mic, MoreHorizontal, PanelLeftClose, PanelLeftOpen, PanelRight, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings as Gear, Settings2,
+  Brain, Square, SquarePen, ThumbsDown, ThumbsUp, Trash2, UserRound, UsersRound, X,
 } from 'lucide-react';
 import AuthDialog from './auth-dialog';
 import Onboarding from './onboarding';
@@ -13,13 +13,14 @@ import ApplicationsDialog from './applications-dialog';
 import LeoWriting from './leo-writing';
 import Logo from './logo';
 import SmoothProse from './smooth-prose';
+import ScrollRail from './scroll-rail';
 import SettingsDialog, { DEFAULT_SETTINGS, type Settings } from './settings-dialog';
 import { auth } from '@/lib/firebase';
 import { type Rating, sendFeedback, trainingJsonl } from '@/lib/feedback';
 import { clearRemote, EMPTY_MEMORY, isEmpty, loadLocal, loadRemote, MAX_CV, type Memory, saveLocal, saveRemote } from '@/lib/memory';
 import ReviewView, { type CvSource } from './review-view';
 import { readImage, readOriginal, readPdf, readWord, toBase64 } from '@/lib/read-file';
-import { isCvReview } from '@/lib/cv-detect';
+import { isCvReview, looksLikeCv } from '@/lib/cv-detect';
 import { type FullCv, type Review, reviewSummary } from '@/lib/review';
 import { useRecorder } from '@/lib/use-recorder';
 import { tapHaptic } from '@/lib/haptics';
@@ -78,13 +79,19 @@ function formatSize(bytes: number) {
   return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
-// Três traços, o último mais curto: abre a gaveta no telemóvel.
-function MenuIcon() {
-  return (
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
-      <path d="M4 6.5h16M4 12h16M4 17.5h10" />
-    </svg>
-  );
+// Uma resposta que merece o painel: uma revisão de CV, ou texto longo, com tabelas, títulos ou blocos visuais.
+function isRich(m: Message) {
+  return Boolean(m.cvReview) || m.text.length > 320 || /```|^\s*\|.+\|\s*$|^#{1,4}\s/m.test(m.text);
+}
+
+// O título de uma resposta no painel: o primeiro título que ela tem, ou a primeira frase.
+function canvasTitle(m: Message, question = '') {
+  if (m.cvReview) return `Revisão de ${m.cvReview.cvName}`;
+  const heading = /^#{1,4}\s+(.+)$/m.exec(m.text)?.[1];
+  // sem título nem frase própria (uma resposta que é só uma tabela), o título é a pergunta que a pediu
+  const first = (heading ?? m.text.split('\n').find((l) => l.trim() && !l.startsWith('```') && !l.startsWith('|')) ?? (question.trim() || 'Resposta')).replace(/[*_`#>]/g, '').trim();
+  const title = first.charAt(0).toLocaleUpperCase('pt-PT') + first.slice(1);
+  return title.length > 60 ? `${title.slice(0, 57).trimEnd()}…` : title;
 }
 
 export default function ChatApp() {
@@ -96,7 +103,7 @@ export default function ChatApp() {
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   // No PC, a app abre sempre com a barra lateral aberta; fechada, fica só a faixa de ícones.
-  const [panelOpen, setPanelOpen] = useState(true);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [user, setUser] = useState<User | null>(null);
   const [authReady, setAuthReady] = useState(false);
@@ -125,7 +132,7 @@ export default function ChatApp() {
     const timer = setInterval(update, 60_000);
     return () => clearInterval(timer);
   }, []);
-  const [profileMenu, setProfileMenu] = useState<'rail' | 'panel' | null>(null);
+  const [profileMenu, setProfileMenu] = useState<'rail' | 'panel' | 'top' | null>(null);
   const [itemMenu, setItemMenu] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -140,6 +147,13 @@ export default function ChatApp() {
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  // A primeira mensagem de uma conversa nova: o ecrã inicial dá lugar à coluna e ao painel, com uma animação.
+  const [entering, setEntering] = useState(false);
+  // Ao sair de uma conversa para o ecrã inicial: o fundo nasce do escuro e a pílula entra (a animação inversa).
+  const [arriving, setArriving] = useState(false);
+  const arriveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const enterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   // Conteúdo dos anexos fica só em memória (pode ser grande demais para o localStorage).
@@ -152,10 +166,19 @@ export default function ChatApp() {
   const messages = active?.messages ?? [];
   const isStreaming = streamingId !== null;
 
+  // PC: numa conversa, o chat fica numa coluna à esquerda e as respostas completas num painel à direita.
+  const split = wide && messages.length > 0;
+  const [canvasPick, setCanvasPick] = useState<string | null>(null);
+  const canvasItems = messages.filter((m) => m.role === 'assistant' && isRich(m));
+  const canvasMsg = canvasItems.find((m) => m.id === canvasPick) ?? canvasItems.at(-1) ?? null;
+  const canvasIndex = canvasMsg ? canvasItems.indexOf(canvasMsg) : -1;
+  const questionFor = (m: Message) => messages.slice(0, messages.indexOf(m)).reverse().find((x) => x.role === 'user')?.text ?? '';
+  // Ao mudar de conversa, ou quando começa uma resposta nova, o painel segue a mais recente.
+  useEffect(() => { setCanvasPick(null); }, [activeId, streamingId]);
+
   useEffect(() => {
     try {
       const stored = { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') } as Settings;
-      if (stored.lang !== 'en') stored.lang = 'pt-PT'; // o português do Brasil deixou de existir
       setSettings(stored);
       setNewChatMode(stored.defaultMode);
     } catch { /* armazenamento indisponível */ }
@@ -286,15 +309,22 @@ export default function ChatApp() {
   }
 
   function newChat() {
+    if (activeId) {
+      setArriving(true);
+      if (arriveTimer.current) clearTimeout(arriveTimer.current);
+      arriveTimer.current = setTimeout(() => setArriving(false), 1600);
+    }
     abortRef.current?.abort();
     setActiveId(null);
     setDraft('');
     setPending([]);
     setDrawerOpen(false);
+    setPanelOpen(false);
     setTimeout(() => inputRef.current?.focus(), 0);
   }
 
   function openConversation(id: string) {
+    setPanelOpen(false);
     if (id === activeId) return setDrawerOpen(false);
     abortRef.current?.abort();
     setActiveId(id);
@@ -336,7 +366,14 @@ export default function ChatApp() {
         if (!response.ok || !result.text) return drop(result.error || `Não foi possível ler ${file.name}.`);
         // Fotografias e PDFs feitos de imagens: as correções desenham-se sobre as páginas na melhor qualidade
         // (a fotografia original, sem recompressão; o PDF desenhado em 4K).
-        const sharp = isImage ? [await readOriginal(file)] : pdf && 'hires' in pdf ? pdf.hires : pages;
+        let sharp = pdf && 'hires' in pdf ? pdf.hires : pages;
+        if (isImage) {
+          const original = await readOriginal(file);
+          sharp = [original.src];
+          // Uma imagem pequena não ganha detalhe ao ser ampliada: diz-se logo, com o que dá melhor resultado.
+          const side = Math.max(original.width, original.height);
+          if (side < 1400 && looksLikeCv(result.text)) setNotice(`Esta imagem é pequena (${side} px), por isso o CV pode ficar pouco nítido. Para a melhor qualidade, anexa o PDF do CV.`);
+        }
         ready(result.text, { images: sharp });
       } catch {
         drop(`Não foi possível ler ${file.name}.`);
@@ -383,7 +420,6 @@ export default function ChatApp() {
     const payload: ChatRequest = {
       mode: conversationMode,
       web: settings.web,
-      lang: settings.lang,
       messages: history.map((m) => ({ role: m.role, text: m.text, attachments: attachmentData.current.get(m.id) })),
       memory: settings.memory && !isEmpty(memoryRef.current) ? memoryRef.current : undefined,
     };
@@ -441,6 +477,11 @@ export default function ChatApp() {
       history = [userMessage];
       setConversations((list) => [{ id: conversationId!, title, mode, messages: history, updatedAt: Date.now() }, ...list]);
       setActiveId(conversationId);
+      {
+        setEntering(true);
+        if (enterTimer.current) clearTimeout(enterTimer.current);
+        enterTimer.current = setTimeout(() => setEntering(false), 1700);
+      }
     } else {
       history = [...active.messages, userMessage];
     }
@@ -573,7 +614,7 @@ export default function ChatApp() {
 
   // O modo (Recrutador/Candidato). No PC fica dentro da caixa, à direita, ao lado do microfone;
   // no telemóvel, por baixo da caixa.
-  const modeInComposer = wide;
+  const modeInComposer = true;
   const modePicker = (extra = '') => (
     <div className={`mode-picker ${extra}`}>
       <button type="button" className="meta-btn" onClick={(e) => { e.stopPropagation(); setModeMenuOpen((o) => !o); }} aria-haspopup="menu" aria-expanded={modeMenuOpen} title="Mudar o modo">
@@ -621,7 +662,7 @@ export default function ChatApp() {
           if (e.key === 'Enter' && !e.shiftKey && settings.enterToSend && !touch && !e.nativeEvent.isComposing) { e.preventDefault(); send(); }
         }}
         onPaste={(e) => { if (e.clipboardData.files.length) { e.preventDefault(); void addFiles(e.clipboardData.files); } }}
-        placeholder={messages.length ? 'Responde ao Leo…' : !wide ? 'Escreve ao Leo…' : mode === 'recrutador' ? 'Cola um CV ou descreve a vaga…' : 'Cola o teu CV ou pergunta ao Leo…'}
+        placeholder={messages.length ? 'Responde ao Leo…' : mode === 'recrutador' ? 'Cola um CV ou descreve a vaga…' : 'Cola o teu CV ou pergunta ao Leo…'}
         aria-label="Mensagem"
       />
       <input ref={fileRef} type="file" hidden multiple accept=".pdf,.docx,.txt,.md,.jpg,.jpeg,.png,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,image/jpeg,image/png,image/webp" onChange={(e: ChangeEvent<HTMLInputElement>) => { if (e.target.files) void addFiles(e.target.files); e.target.value = ''; }} />
@@ -656,16 +697,53 @@ export default function ChatApp() {
       )}
     </form>
 
-    <div className="composer-meta">
-      {!modeInComposer && modePicker()}
-      <button type="button" className="meta-btn" onClick={() => updateSettings({ ...settings, web: !settings.web })} title={settings.web ? 'Desligar a pesquisa na web' : 'Ligar a pesquisa na web'}>
-        <strong>Leo</strong><span>{settings.web ? 'Com web' : 'Sem web'}</span>
-      </button>
-    </div>
+    {!messages.length ? (
+      // No ecrã inicial do PC, uma barra presa por baixo da caixa: anexar, pesquisa na web e memória.
+      <div className="tray">
+        <button type="button" className="tray-btn" onClick={() => fileRef.current?.click()}><Paperclip size={15} /> Anexar<span className="tray-long"> ficheiro</span></button>
+        <button type="button" className={`tray-btn${settings.web ? ' is-on' : ''}`} onClick={() => updateSettings({ ...settings, web: !settings.web })} aria-pressed={settings.web}><Globe size={15} /> Pesquisa<span className="tray-long"> na web</span></button>
+        <button type="button" className="tray-btn tray-end" onClick={() => updateSettings({ ...settings, memory: !settings.memory })} aria-pressed={settings.memory} title="O Leo lembra-se de ti entre conversas">
+          <Brain size={15} /> Memória <b>{settings.memory ? 'ligada' : 'desligada'}</b>
+        </button>
+      </div>
+    ) : (
+      <div className="composer-meta">
+        {!modeInComposer && modePicker()}
+        <button type="button" className="meta-btn" onClick={() => updateSettings({ ...settings, web: !settings.web })} title={settings.web ? 'Desligar a pesquisa na web' : 'Ligar a pesquisa na web'}>
+          <strong>Leo</strong><span>{settings.web ? 'Com web' : 'Sem web'}</span>
+        </button>
+      </div>
+    )}
   </div>
   );
 
-  const accountMenu = (where: 'rail' | 'panel') => profileMenu === where && (
+  // O corpo de uma resposta do Leo: na conversa ou no painel à direita.
+  const assistantBody = (m: Message, isLast: boolean) => {
+    const writing = m.id === streamingId;
+    const thinking = writing && !m.text;
+    return (
+      <div className="assistant-body">
+        {m.cvReview ? (
+          <ReviewView {...m.cvReview} source={cvSources.current.get(m.id)} onFull={saveFull(active!.id, m.id)} />
+        ) : thinking ? <LeoWriting label={searchingId === m.id ? 'A pesquisar na web' : 'A pensar'} /> : (
+          <SmoothProse text={m.text} streaming={writing} />
+        )}
+        {writing && !thinking && !m.cvReview && <LeoWriting />}
+        {m.id !== streamingId && m.text && !m.cvReview && (
+          <div className="msg-actions">
+            <button onClick={() => copy(m)} aria-label="Copiar" title="Copiar">{copiedId === m.id ? <Check size={15} /> : <Copy size={15} />}</button>
+            {isLast && <button onClick={regenerate} aria-label="Gerar novamente" title="Gerar novamente"><RotateCcw size={15} /></button>}
+            {!m.error && <>
+              <button className={m.feedback === 'up' ? 'is-on' : ''} onClick={() => rate(m, 'up')} aria-label="Boa resposta" aria-pressed={m.feedback === 'up'} title="Boa resposta"><ThumbsUp size={15} /></button>
+              <button className={m.feedback === 'down' ? 'is-on' : ''} onClick={() => rate(m, 'down')} aria-label="Má resposta" aria-pressed={m.feedback === 'down'} title="Má resposta"><ThumbsDown size={15} /></button>
+            </>}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const accountMenu = (where: 'rail' | 'panel' | 'top') => profileMenu === where && (
     <div className={`menu settings-menu from-${where}`} onClick={(e) => e.stopPropagation()}>
       {user?.email && <div className="menu-email" title={user.email}>{user.email}</div>}
       <button onClick={() => { setProfileMenu(null); setDialog('settings'); }}><Settings2 size={15} /> Configurações</button>
@@ -674,7 +752,7 @@ export default function ChatApp() {
   );
 
   return (
-    <div className={`app${panelOpen ? ' panel-open' : ''}${drawerOpen ? ' drawer-open' : ''}`}>
+    <div className={`app${panelOpen ? ' panel-open' : ''}${drawerOpen ? ' drawer-open' : ''}${arriving && !messages.length ? ' is-arriving' : ''}`}>
       <div className="scrim" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
 
       {/* PC: a faixa de ícones, sempre à vista. */}
@@ -719,7 +797,7 @@ export default function ChatApp() {
             <section key={group.label}>
               <h3>{group.label}</h3>
               {group.items.map((c) => (
-                <div className={`history-item${c.id === activeId ? ' is-active' : ''}${itemMenu === c.id ? ' menu-open' : ''}`} key={c.id}>
+                <div className={`history-item${c.id === activeId ? ' is-active' : ''}${itemMenu === c.id ? ' menu-open' : ''}`} key={c.id} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setItemMenu(c.id); }}>
                   {renaming?.id === c.id ? (
                     <form onSubmit={(e) => { e.preventDefault(); updateConversation(c.id, (x) => ({ ...x, title: renaming.title.trim() || x.title })); setRenaming(null); }}>
                       <input autoFocus value={renaming.title} onChange={(e) => setRenaming({ id: c.id, title: e.target.value })} onBlur={(e) => e.currentTarget.form?.requestSubmit()} aria-label="Novo título" />
@@ -757,13 +835,48 @@ export default function ChatApp() {
         </div>
       </aside>
 
-      <main className="main" onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }} onDrop={onDrop}>
+      {/* PC: as conversas abrem por cima, a partir da esquerda; um clique fora fecha-as. */}
+      <div className="panel-scrim desktop-only" onClick={() => setPanelOpen(false)} aria-hidden="true" />
+
+      {/* PC: os atalhos numa pílula a flutuar à direita. */}
+      <nav className="dock desktop-only" aria-label="Atalhos">
+        <button className={`dock-btn${!active && !panelOpen ? ' is-on' : ''}`} onClick={newChat} aria-label="Nova conversa" title="Nova conversa"><SquarePen size={19} strokeWidth={1.7} /></button>
+        <button className="dock-btn" onClick={() => setDialog('apps')} aria-label="Candidaturas" title="Candidaturas"><BriefcaseBusiness size={19} strokeWidth={1.7} /></button>
+        <button className={`dock-btn${panelOpen ? ' is-on' : ''}`} onClick={() => setPanelOpen(!panelOpen)} aria-label="Conversas" aria-expanded={panelOpen} title="Conversas"><MessageSquareText size={19} strokeWidth={1.7} /></button>
+        <span className="dock-sep" aria-hidden="true" />
+        <button className="dock-btn" onClick={() => setDialog('settings')} aria-label="Configurações" title="Configurações"><Gear size={19} strokeWidth={1.7} /></button>
+      </nav>
+
+      <main className={`main${split ? ' is-split' : ''}${messages.length > 0 && entering ? ' is-entering' : ''}`} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }} onDrop={onDrop}>
         <header className="topbar">
-          <button className="icon-btn menu-btn mobile-only" onClick={() => setDrawerOpen(true)} aria-label="Abrir menu" title="Abrir menu"><MenuIcon /></button>
+          <nav className="mnav mobile-only" aria-label="Navegação">
+              <button className={`mnav-link${!drawerOpen ? ' is-on' : ''}`} onClick={newChat}>Leo</button>
+              <button className="mnav-link" onClick={() => setDialog('apps')}>Candidaturas</button>
+              <button className={`mnav-link${drawerOpen ? ' is-on' : ''}`} onClick={() => setDrawerOpen(true)}>Conversas</button>
+              <button className="mnav-icon" onClick={() => setDialog('settings')} aria-label="Configurações"><Gear size={18} strokeWidth={1.8} /></button>
+            </nav>
+          <div className="topbar-brand desktop-only">
+            <span className="brand-word">CVviews</span>
+          </div>
           <span className="topbar-title">{active?.title ?? ''}</span>
           {liveAI === false && <span className="demo-badge" title="Sem GROQ_API_KEY: respostas de demonstração">Demo</span>}
           <button className={`icon-btn new-btn${active ? '' : ' mobile-only'}`} onClick={newChat} aria-label="Nova conversa" title="Nova conversa"><SquarePen size={19} /></button>
+          <div className="topbar-account desktop-only">
+            {authReady && !user ? (
+              <button className="topbar-signin" onClick={() => setDialog('auth')}><LogIn size={16} /> Entrar</button>
+            ) : user ? (
+              <button className="topbar-avatar" onClick={(e) => { e.stopPropagation(); setProfileMenu(profileMenu === 'top' ? null : 'top'); }} aria-label="A tua conta" title={userName || user.email || 'A tua conta'}>{avatar}</button>
+            ) : null}
+            {accountMenu('top')}
+          </div>
         </header>
+
+        {messages.length > 0 && (
+          <div className="chathead">
+            <button className="chathead-back" onClick={newChat}><ChevronLeft size={16} /> Nova conversa</button>
+            <span className="chathead-leo"><Logo className="chathead-logo" /><b>Leo</b><small>{isStreaming ? 'a escrever…' : MODES[mode].label}</small></span>
+          </div>
+        )}
 
         <div className="thread" ref={scrollRef} onScroll={(e) => { const el = e.currentTarget; setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80); }}>
           {!messages.length ? (
@@ -774,10 +887,12 @@ export default function ChatApp() {
                 ))}
               </div>
               <div className="hello">
-                <Logo className="hello-logo" />
+                {/* PC: a linha do Leo em PNG (branca, com sombra) sobre o azul; telemóvel: o traço em SVG, na cor do texto. */}
+                <img className="hello-mark desktop-only" src="/leo-mark.png" alt="" width={240} height={150} />
+                <Logo className="hello-logo mobile-only" />
                 <h1><span className="hello-name">{greeting}{firstName ? `, ${firstName}` : ''}</span><span className="hello-q"> O que vamos fazer hoje?</span></h1>
               </div>
-              {wide && composer}
+              {composer}
               <div className="ideas">
                 {SUGGESTIONS[mode].map(({ icon: Icon, title, hint, prompt }, i) => (
                   <button key={title} className="idea" style={{ animationDelay: `${0.1 + i * 0.05}s` }} onClick={() => { if (prompt.startsWith('Vou anexar')) { setDraft(prompt); fileRef.current?.click(); } else send(prompt); }}>
@@ -801,30 +916,17 @@ export default function ChatApp() {
                     ))}
                     {m.text && <div className="bubble">{m.text}</div>}
                   </div>
+                ) : split && isRich(m) && !thinking ? (
+                  // No PC, a resposta completa vai para o painel à direita; aqui fica um cartão que a abre.
+                  <div className="msg msg-assistant" key={m.id}>
+                    <button className={`canvas-card${canvasMsg?.id === m.id ? ' is-on' : ''}`} onClick={() => setCanvasPick(m.id)}>
+                      <span className="canvas-card-icon">{m.cvReview ? <FileText size={17} /> : <PanelRight size={17} />}</span>
+                      <span className="canvas-card-text"><strong>{canvasTitle(m, questionFor(m))}</strong><small>{writing ? 'A escrever…' : canvasMsg?.id === m.id ? 'Aberto no painel' : 'Abrir no painel'}</small></span>
+                    </button>
+                  </div>
                 ) : (
                   <div className={`msg msg-assistant${m.error ? ' is-error' : ''}`} key={m.id}>
-                    <div className="assistant-body">
-                      {m.cvReview ? (
-                        <ReviewView
-                          {...m.cvReview}
-                          source={cvSources.current.get(m.id)}
-                          onFull={saveFull(active!.id, m.id)}
-                        />
-                      ) : thinking ? <LeoWriting label={searchingId === m.id ? 'A pesquisar na web' : 'A pensar'} /> : (
-                        <SmoothProse text={m.text} streaming={writing} />
-                      )}
-                      {writing && !thinking && !m.cvReview && <LeoWriting />}
-                      {m.id !== streamingId && m.text && !m.cvReview && (
-                        <div className="msg-actions">
-                          <button onClick={() => copy(m)} aria-label="Copiar" title="Copiar">{copiedId === m.id ? <Check size={15} /> : <Copy size={15} />}</button>
-                          {isLast && <button onClick={regenerate} aria-label="Gerar novamente" title="Gerar novamente"><RotateCcw size={15} /></button>}
-                          {!m.error && <>
-                            <button className={m.feedback === 'up' ? 'is-on' : ''} onClick={() => rate(m, 'up')} aria-label="Boa resposta" aria-pressed={m.feedback === 'up'} title="Boa resposta"><ThumbsUp size={15} /></button>
-                            <button className={m.feedback === 'down' ? 'is-on' : ''} onClick={() => rate(m, 'down')} aria-label="Má resposta" aria-pressed={m.feedback === 'down'} title="Má resposta"><ThumbsDown size={15} /></button>
-                          </>}
-                        </div>
-                      )}
-                    </div>
+                    {assistantBody(m, isLast)}
                   </div>
                 );
               })}
@@ -832,7 +934,36 @@ export default function ChatApp() {
           )}
         </div>
 
-        {(!wide || messages.length > 0) && composer}
+        <ScrollRail target={scrollRef} />
+
+        {messages.length > 0 && composer}
+
+        {/* PC: o painel com a resposta completa (tabelas, revisões de CV, respostas longas). */}
+        {split && (
+          <section className="canvas" aria-label="Painel">
+            {canvasMsg ? (
+              <>
+                <header className="canvas-head">
+                  <strong>{canvasTitle(canvasMsg, questionFor(canvasMsg))}</strong>
+                  {canvasItems.length > 1 && (
+                    <span className="canvas-nav">
+                      <button className="icon-btn" disabled={canvasIndex <= 0} onClick={() => setCanvasPick(canvasItems[canvasIndex - 1].id)} aria-label="Resposta anterior"><ChevronLeft size={17} /></button>
+                      <span>{canvasIndex + 1} de {canvasItems.length}</span>
+                      <button className="icon-btn" disabled={canvasIndex >= canvasItems.length - 1} onClick={() => setCanvasPick(canvasItems[canvasIndex + 1].id)} aria-label="Resposta seguinte"><ChevronRight size={17} /></button>
+                    </span>
+                  )}
+                </header>
+                <div className="canvas-body" ref={canvasRef}><div className="canvas-page" key={canvasMsg.id}>{assistantBody(canvasMsg, canvasMsg.id === messages.at(-1)?.id)}</div></div>
+                <ScrollRail target={canvasRef} />
+              </>
+            ) : (
+              <div className="canvas-empty">
+                <PanelRight size={26} strokeWidth={1.5} />
+                <span>{isStreaming ? 'A preparar a resposta' : 'Tabelas, revisões de CV e respostas longas aparecem aqui.'}</span>
+              </div>
+            )}
+          </section>
+        )}
 
         {dragging && <div className="drop-overlay"><Paperclip size={26} /><strong>Larga o currículo aqui</strong><span>PDF, TXT ou fotografia, até 20 MB</span></div>}
         {notice && <div className="toast" role="status">{notice}</div>}

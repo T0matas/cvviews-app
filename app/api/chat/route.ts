@@ -114,11 +114,26 @@ ${FENCE}
 | 2 | 2 | 4 |
 | 3 | 4 | 6 |`;
 
-// A língua escolhida nas Configurações vem por último, para valer sobre a regra de pt-PT.
-const LANG_NOTE: Record<string, string> = {
-  'pt-PT': '',
-  en: '\n\nLanguage: ignore the European Portuguese rule above and always answer in English.',
-};
+// A língua da última mensagem, quando dá para ter a certeza: os cumprimentos e as palavras mais comuns de cada língua.
+// O modelo, com as instruções em português, às vezes mistura; dizer-lhe a língua pelo nome resolve.
+const LANGS: { name: string; greet: RegExp; words: RegExp }[] = [
+  { name: 'inglês', greet: /^(hello|hi|hey|good (morning|afternoon|evening))\b/i, words: /\b(the|and|is|are|my|your|you|what|how|can|please|with|for|this|that|help|resume)\b/gi },
+  { name: 'espanhol', greet: /^(hola|buenos d[ií]as|buenas)\b/i, words: /\b(el|los|las|es|est[aá]|qu[eé]|c[oó]mo|puedes|por favor|mi|tu|con|para|curr[ií]culum|ayuda)\b/gi },
+  { name: 'francês', greet: /^(bonjour|bonsoir|salut|coucou)\b/i, words: /\b(le|la|les|est|et|je|tu|vous|mon|ma|avec|pour|quoi|comment|aide|s'il)\b/gi },
+  { name: 'italiano', greet: /^(ciao|buongiorno|buonasera|salve)\b/i, words: /\b(il|gli|sono|che|come|mio|mia|con|per|aiuto|grazie)\b/gi },
+  { name: 'alemão', greet: /^(hallo|guten (tag|morgen|abend)|servus|moin)\b/i, words: /\b(der|die|das|und|ist|ich|du|mein|mit|für|wie|bitte|hilfe|lebenslauf)\b/gi },
+  { name: 'português de Portugal', greet: /^(ol[aá]|oi|bom dia|boa tarde|boa noite)\b/i, words: /\b(o|os|as|é|está|que|como|podes|por favor|meu|minha|com|para|ajuda|currículo)\b/gi },
+];
+function languageNote(text: string) {
+  const t = text.trim();
+  const hit = LANGS.find((l) => l.greet.test(t));
+  if (hit) return hit.name;
+  const scored = LANGS.map((l) => ({ name: l.name, n: (t.match(l.words) ?? []).length })).sort((a, b) => b.n - a.n);
+  return scored[0].n >= 3 && scored[0].n >= (scored[1]?.n ?? 0) * 2 ? scored[0].name : '';
+}
+
+// A língua da resposta segue a da pessoa. Vai no fim da conversa, onde o modelo lhe dá mais peso.
+const LANG_RULE = `Língua da resposta: responde na mesma língua em que está escrita a última mensagem da pessoa (e não na língua destas instruções). Escreve a resposta toda nessa língua, do princípio ao fim, sem misturar palavras de português. Exemplos: "olá" ou "oi" → português de Portugal; "hello" ou "hi" → inglês; "hola" → espanhol; "bonjour" → francês; "ciao" → italiano; "hallo" → alemão. Se a mensagem for tão curta que serve em várias línguas ("ok", um nome, um número), usa a língua das mensagens anteriores; sem mensagens anteriores, português de Portugal. Com um trabalho anexado, responde na língua do documento, salvo se a pessoa escrever noutra língua ou pedir outra.`;
 
 const textResponse = (stream: ReadableStream<Uint8Array>, mode: 'live' | 'demo') =>
   new Response(stream, { headers: { 'Content-Type': 'text/plain; charset=utf-8', 'X-CVViews-Mode': mode, 'Cache-Control': 'no-store' } });
@@ -175,7 +190,7 @@ export async function POST(request: Request) {
 
 ${today(web)}${memoryNote(body.memory, last.text, history.some((m) => m.attachments?.some((f) => f.data?.trim())))}${hasDoc ? `
 
-${DOC_TASK}` : ""}${LANG_NOTE[body.lang ?? "pt-PT"] ?? ""}` }, ...turns, ...(hasDoc ? [{ role: "system", content: DOC_FORMAT }] : []), ...(LANG_NOTE[body.lang ?? "pt-PT"] ? [{ role: "system", content: LANG_NOTE[body.lang!].trim() }] : [])],
+${DOC_TASK}` : ""}` }, ...turns, ...(hasDoc ? [{ role: "system", content: DOC_FORMAT }] : []), { role: "system", content: LANG_RULE + (languageNote(last.text) ? ` A última mensagem está em ${languageNote(last.text)}: escreve a resposta toda em ${languageNote(last.text)}.` : '') }],
         }, request.signal);
 
         // O texto sai uma palavra atrás do modelo, para o humanize() ver um travessão junto

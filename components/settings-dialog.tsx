@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { User } from 'firebase/auth';
 import {
-  Brain, BriefcaseBusiness, CornerDownLeft, Database, Download, FileText, Globe, Languages, LogIn, LogOut, Mic,
+  Brain, BriefcaseBusiness, CornerDownLeft, Database, Download, FileText, Globe, LogIn, LogOut, Mic,
   Monitor, Moon, Send, Settings2, Sparkles, Sun, Trash2, UserRound, UsersRound, X,
 } from 'lucide-react';
 import type { Mode } from '@/lib/types';
@@ -21,11 +21,9 @@ export type Settings = {
   memory: boolean;
   /** O tema: o do sistema, ou claro/escuro fixo. */
   theme: 'system' | 'light' | 'dark';
-  /** A língua das respostas do Leo. */
-  lang: 'pt-PT' | 'en';
 };
 
-export const DEFAULT_SETTINGS: Settings = { displayName: '', defaultMode: 'recrutador', web: true, enterToSend: true, voiceLang: 'pt', autoSendVoice: false, memory: true, theme: 'system', lang: 'pt-PT' };
+export const DEFAULT_SETTINGS: Settings = { displayName: '', defaultMode: 'recrutador', web: true, enterToSend: true, voiceLang: 'pt', autoSendVoice: false, memory: true, theme: 'system' };
 
 const TABS = [
   { id: 'geral', label: 'Geral', icon: Settings2 },
@@ -152,8 +150,6 @@ export default function SettingsDialog({ settings, onChange, user, conversationC
                     <Toggle label="Pesquisa na web" checked={settings.web} onChange={(v) => set('web', v)} />
                   </Line>
                 </div>
-                <Label>Língua das respostas</Label>
-                <Choices label="Língua das respostas" value={settings.lang} onChange={(v) => set('lang', v)} options={[{ id: 'pt-PT', label: 'Portugal', icon: Languages }, { id: 'en', label: 'English', icon: Languages }]} />
               </>
             )}
 
