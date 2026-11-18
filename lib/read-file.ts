@@ -1,0 +1,140 @@
+'use client';
+
+// Lê os ficheiros no navegador, antes de seguirem para o servidor:
+// um PDF com texto segue como texto; um PDF feito de imagens (digitalizado, ou o CV corrigido que o site
+// descarrega) segue como fotografias das páginas, que o servidor transcreve com o modelo de visão.
+
+const MAX_PAGES = 4;
+// O modelo de visão recebe cópias reduzidas; o CV corrigido é desenhado a partir das páginas em 4K.
+const MAX_SIDE = 1800;
+const HI_SIDE = 3840;
+
+type PdfResult = { text: string } | { images: string[]; hires: string[] };
+
+// Uma cópia reduzida de uma página já desenhada, para o modelo de visão.
+function shrink(source: HTMLCanvasElement | HTMLImageElement, width: number, height: number) {
+  const scale = Math.min(1, MAX_SIDE / Math.max(width, height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(width * scale);
+  canvas.height = Math.round(height * scale);
+  const context = canvas.getContext('2d')!;
+  context.imageSmoothingQuality = 'high';
+  context.fillStyle = '#fff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(source, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.85);
+}
+
+async function pdfjs() {
+  const lib = await import('pdfjs-dist');
+  lib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+  return lib;
+}
+
+export async function readPdf(file: File): Promise<PdfResult> {
+  const { getDocument } = await pdfjs();
+  const task = getDocument({ data: new Uint8Array(await file.arrayBuffer()) });
+  const pdf = await task.promise;
+  try {
+    const pages: string[] = [];
+    for (let n = 1; n <= pdf.numPages; n++) {
+      const content = await (await pdf.getPage(n)).getTextContent();
+      pages.push(content.items.map((item) => ('str' in item ? item.str + (item.hasEOL ? '\n' : ' ') : '')).join(''));
+    }
+    const text = pages.join('\n\n').replace(/[ \t]+\n/g, '\n').trim();
+    if (text.replace(/\s/g, '').length >= 40) return { text };
+
+    // Sem texto: desenha as primeiras páginas em 4K (para o CV corrigido) e uma cópia reduzida (para a leitura).
+    const images: string[] = [];
+    const hires: string[] = [];
+    for (let n = 1; n <= Math.min(pdf.numPages, MAX_PAGES); n++) {
+      const page = await pdf.getPage(n);
+      const base = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: HI_SIDE / Math.max(base.width, base.height) });
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(viewport.width);
+      canvas.height = Math.round(viewport.height);
+      const context = canvas.getContext('2d')!;
+      context.fillStyle = '#fff';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvas, canvasContext: context, viewport }).promise;
+      hires.push(canvas.toDataURL('image/png'));   // sem perdas: as letras ficam nítidas
+      images.push(shrink(canvas, canvas.width, canvas.height));
+    }
+    return { images, hires };
+  } finally {
+    void task.destroy();
+  }
+}
+
+// O PDF original em base64, para desenhar as correções por cima das páginas.
+export async function toBase64(file: File) {
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let out = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) out += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(out);
+}
+
+// Um documento Word (.docx), lido como texto no navegador.
+export async function readWord(file: File) {
+  const mammoth = await import('mammoth');
+  const { value } = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+  return value.trim();
+}
+
+// A fotografia na melhor qualidade possível, para desenhar as correções por cima, e o seu tamanho real.
+// - Um JPEG segue tal como veio (cada regravação em JPEG estraga um pouco mais as letras).
+// - Um PNG ou WebP (um print de ecrã) segue em PNG, sem perdas, sobre fundo branco: com transparência o fundo
+//   ficava preto e a leitura das linhas falhava.
+// Só uma imagem enorme (mais de 4800 px) é reduzida.
+export async function readOriginal(file: File): Promise<{ src: string; width: number; height: number }> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('imagem inválida'));
+      image.src = url;
+    });
+    const width = img.naturalWidth, height = img.naturalHeight;
+    const scale = Math.min(1, 4800 / Math.max(width, height));
+    const isJpeg = /^image\/jpe?g$/.test(file.type) || /\.jpe?g$/i.test(file.name);
+    if (isJpeg && scale === 1) {
+      const src = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      return { src, width, height };
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(width * scale);
+    canvas.height = Math.round(height * scale);
+    const context = canvas.getContext('2d')!;
+    context.imageSmoothingQuality = 'high';
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(img, 0, 0, canvas.width, canvas.height);
+    // reduzida de um JPEG enorme: volta a JPEG de alta qualidade (em PNG ficaria pesadíssima); o resto, PNG
+    return { src: isJpeg ? canvas.toDataURL('image/jpeg', 0.97) : canvas.toDataURL('image/png'), width, height };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+// Fotografias de um CV: reduzidas para caberem no limite do modelo de visão.
+export async function readImage(file: File): Promise<string> {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('imagem inválida'));
+      image.src = url;
+    });
+    return shrink(img, img.naturalWidth, img.naturalHeight);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}

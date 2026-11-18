@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CVviews Film</title>
+<style>
+@font-face { font-family: "Host Grotesk"; src: url("../public/fonts/host-grotesk-latin-wght-normal.woff2") format("woff2"); font-weight: 300 800; }
+@font-face { font-family: "Literata"; src: url("../public/fonts/literata-latin-opsz-normal.woff2") format("woff2"); font-weight: 200 900; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #111; overflow: hidden; }
+body { display: grid; place-items: center; font-family: "Host Grotesk", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+/* Como uma gravação de ecrã com intervalos: a app a sério em ecrã inteiro (capturas de localhost),
+   um cursor que faz o que uma pessoa faria e, entre cenas, uma frase curta sobre o escuro da própria app. */
+#stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; flex: none; background: #131313; transform-origin: center; }
+.abs { position: absolute; will-change: transform, opacity; }
+
+/* As cenas da app: a imagem (2880x1800) ocupa a largura e corta 60px em cima e em baixo */
+.scene { position: absolute; left: 0; top: -60px; width: 1920px; height: 1200px; opacity: 0; transform-origin: 50% 50%; }
+.scene img { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+.wipe { position: absolute; left: 30%; right: 0; background: linear-gradient(#13131300, #131313 80px); }
+
+/* As frases entre cenas */
+.card { left: 0; right: 0; top: 0; bottom: 0; display: grid; place-items: center; opacity: 0; }
+.card p { margin: 0; font: 400 64px/1.2 "Literata"; letter-spacing: -1px; color: #ecebe6; text-align: center; }
+.card p span { display: block; margin-top: 14px; font: 400 26px "Host Grotesk"; letter-spacing: 0; color: #8a8984; }
+
+/* O cursor */
+#cursor { left: 0; top: 0; z-index: 10; }
+#cursor svg { width: 30px; height: 30px; display: block; filter: drop-shadow(0 2px 4px rgb(0 0 0 / .5)); }
+#ring { left: 0; top: 0; width: 46px; height: 46px; margin: -23px 0 0 -23px; border: 2px solid rgb(255 255 255 / .7); border-radius: 50%; opacity: 0; z-index: 9; }
+
+/* O telemóvel */
+#phone { left: 743px; top: 70px; width: 434px; height: 940px; padding: 10px; border-radius: 64px; background: #050505; box-shadow: 0 0 0 1px #2a2a2a; opacity: 0; }
+#screen { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 54px; background: #000; }
+#screen img { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+
+.mark { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="abs" id="intro" style="left:0;right:0;top:470px;display:flex;justify-content:center;color:#ecebe6">
+    <svg class="mark" id="m1" viewBox="0 0 40 24" style="width:160px;height:96px" stroke-width="2.2"><path pathLength="1" d="M2 17c3-1 4-9 7-9s1 9 4 9 3-11 7-11-1 11 3 11 3-7 6-7 2 6 5 6 3-3 4-4"/></svg>
+  </div>
+
+  <div class="abs card" id="k1"><p>Começa com uma conversa.</p></div>
+  <div class="abs card" id="k2"><p>Um trabalho para amanhã?<span>Anexa-o e escreve «faz».</span></p></div>
+  <div class="abs card" id="k3"><p>Do teu jeito.</p></div>
+  <div class="abs card" id="k4"><p>E no bolso.</p></div>
+
+  <div class="scene" id="sA">
+    <img id="aWelcome" src="shots/welcome.jpg" alt="">
+    <img id="aAttached" src="shots/attached.jpg" alt="">
+  </div>
+  <div class="scene" id="sB">
+    <img id="bAttached" src="shots/attached.jpg" alt="">
+    <img id="bTyped" src="shots/typed.jpg" alt="">
+    <img id="bAnswer" src="shots/answer.jpg" alt="">
+    <div class="wipe" id="wipe"></div>
+  </div>
+  <div class="scene" id="sC">
+    <img id="cSettings" src="shots/settings.jpg" alt="">
+    <img id="cLight" src="shots/light.jpg" alt="">
+  </div>
+
+  <div class="abs" id="phone"><div id="screen"></div></div>
+
+  <div class="abs" id="outro" style="left:0;right:0;top:440px;display:flex;justify-content:center;align-items:center;gap:36px;color:#ecebe6">
+    <svg class="mark" id="m2" viewBox="0 0 40 24" style="width:140px;height:84px" stroke-width="2.2"><path pathLength="1" d="M2 17c3-1 4-9 7-9s1 9 4 9 3-11 7-11-1 11 3 11 3-7 6-7 2 6 5 6 3-3 4-4"/></svg>
+    <span id="name" style="font:400 120px/1 'Literata';letter-spacing:-4px">CVviews</span>
+  </div>
+
+  <div class="abs" id="ring"></div>
+  <div class="abs" id="cursor"><svg viewBox="0 0 24 24"><path d="M4 2.5v17.2l4.6-4.4 3 6.4 2.6-1.2-3-6.3h6.3z" fill="#fff" stroke="#111" stroke-width="1.3" stroke-linejoin="round"/></svg></div>
+</div>
+
+<script>
+const DURATION = 34;
+const LOGIN_FRAMES = 53, LOGIN_SECONDS = 9.6;
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, x) => a + (b - a) * x;
+const ease = (x) => (x < .5 ? 4 * x ** 3 : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const out = (x) => 1 - Math.pow(1 - x, 3);
+
+const screen = $('screen');
+for (let i = 0; i < LOGIN_FRAMES; i++) { const im = document.createElement('img'); im.src = `shots/seq/login-${String(i).padStart(3, '0')}.jpg`; screen.appendChild(im); }
+
+function life(t, a, b, fin = .6, fout = .5) { return t < a || t > b ? 0 : Math.min(ease(prog(t, a, a + fin)), 1 - ease(prog(t, b - fout, b))); }
+function draw(svg, t, a, b) { const p = svg.querySelector('path'); p.style.strokeDasharray = 1; p.style.strokeDashoffset = 1 - ease(prog(t, a, b)); }
+function card(id, t, a, b) {
+  const el = $(id), v = life(t, a, b, .7, .5);
+  el.style.opacity = v;
+  el.querySelector('p').style.transform = `translateY(${(1 - out(prog(t, a, a + 1))) * 10}px)`;
+}
+// Uma cena da app: aparece, empurra devagar para o ponto de interesse, desaparece.
+function scene(id, t, a, b, ox, oy, push = .06) {
+  const el = $(id), v = life(t, a, b, .5, .45);
+  el.style.opacity = v;
+  el.style.transformOrigin = `${ox}% ${oy}%`;
+  el.style.transform = `scale(${1 + push * ease(prog(t, a, b))})`;
+  return v;
+}
+function layer(id, t, a, fin = .35) { $(id).style.opacity = t < a ? 0 : ease(prog(t, a, a + fin)); }
+
+// O cursor: [tempo, x, y] no palco; os toques deixam um anel a abrir.
+const PATH = [
+  [5.6, 1100, 860], [6.8, 662, 528], [8.4, 662, 528], [9.2, 760, 560],
+  [12.6, 760, 560], [13.4, 700, 578], [14.6, 1604, 574], [15.6, 1604, 574], [16.2, 1660, 700],
+  [22.3, 1300, 820], [23.6, 1076, 372], [24.6, 1110, 470],
+];
+const SHOW = [[5.6, 9.8], [12.6, 16.6], [22.3, 25.2]];
+const TAPS = [7.0, 15.0, 23.8];
+function cursor(t) {
+  const on = SHOW.find(([a, b]) => t >= a && t <= b);
+  const c = $('cursor');
+  c.style.opacity = on ? Math.min(prog(t, on[0], on[0] + .3), 1 - prog(t, on[1] - .3, on[1])) : 0;
+  let x = PATH[0][1], y = PATH[0][2];
+  for (let i = 0; i < PATH.length - 1; i++) {
+    const [t0, x0, y0] = PATH[i], [t1, x1, y1] = PATH[i + 1];
+    if (t >= t0 && t <= t1) { const k = ease(prog(t, t0, t1)); x = lerp(x0, x1, k); y = lerp(y0, y1, k); break; }
+    if (t > t1) { x = x1; y = y1; }
+  }
+  const press = TAPS.some((s) => t >= s && t < s + .14);
+  c.style.transform = `translate(${x - 4}px, ${y - 3}px) scale(${press ? .86 : 1})`;
+  const tap = TAPS.find((s) => t >= s && t < s + .55);
+  const r = $('ring');
+  if (tap != null) { const k = prog(t, tap, tap + .55); r.style.opacity = .8 * (1 - k); r.style.transform = `translate(${x}px, ${y}px) scale(${.4 + out(k) * .9})`; }
+  else r.style.opacity = 0;
+}
+
+function render(t) {
+  // 0. A linha do Leo, sozinha (0 – 2.6)
+  $('intro').style.opacity = life(t, 0, 2.6, .01, .5);
+  draw($('m1'), t, .2, 1.8);
+
+  // 1. Começa com uma conversa (2.6 – 4.8), e a app (4.6 – 10.2)
+  card('k1', t, 2.6, 4.8);
+  scene('sA', t, 4.6, 10.2, 34, 50);
+  layer('aWelcome', t, 0, .01);
+  layer('aAttached', t, 7.2, .3);
+
+  // 2. Um trabalho para amanhã? (10.0 – 12.6), e a resposta (12.4 – 20.4)
+  card('k2', t, 10.0, 12.6);
+  scene('sB', t, 12.4, 20.4, 62, 46, .07);
+  layer('bAttached', t, 0, .01);
+  layer('bTyped', t, 13.0, .25);
+  layer('bAnswer', t, 15.3, .4);
+  const wk = prog(t, 15.6, 19.4);
+  $('wipe').style.opacity = t > 15.3 ? 1 : 0;
+  $('wipe').style.top = `${lerp(21, 74, ease(wk))}%`;
+  $('wipe').style.height = `${lerp(62, 6, wk)}%`;
+
+  // 3. Do teu jeito (20.2 – 22.2): as configurações e o tema claro (22.0 – 26.4)
+  card('k3', t, 20.2, 22.2);
+  scene('sC', t, 22.0, 26.4, 50, 40, .04);
+  layer('cSettings', t, 0, .01);
+  layer('cLight', t, 24.1, .5);
+
+  // 4. E no bolso (26.2 – 27.8): o telemóvel com os quadros reais do ecrã de entrada (27.6 – 31.4)
+  card('k4', t, 26.2, 27.8);
+  const pv = life(t, 27.6, 31.4, .6, .5);
+  $('phone').style.opacity = pv;
+  $('phone').style.transform = `translateY(${(1 - out(prog(t, 27.6, 28.6))) * 30}px)`;
+  const ft = clamp((t - 27.6) * 1.6 + 1.8, 0, LOGIN_SECONDS - .01) / LOGIN_SECONDS * (LOGIN_FRAMES - 1);
+  const f0 = Math.floor(ft), mix = ft - f0;
+  [...screen.children].forEach((im, i) => { im.style.opacity = i === f0 ? 1 : i === f0 + 1 ? mix : 0; });
+
+  // 5. Fim: a marca, sem mais nada (31.2 – 34)
+  $('outro').style.opacity = life(t, 31.2, DURATION, .6, .01);
+  draw($('m2'), t, 31.3, 32.6);
+  $('name').style.opacity = ease(prog(t, 32.0, 32.9));
+
+  cursor(t);
+}
+
+window.render = render;
+window.DURATION = DURATION;
+
+const params = new URLSearchParams(location.search);
+if (!params.has('capture')) {
+  const fit = () => { const s = Math.min(innerWidth / 1920, innerHeight / 1080); $('stage').style.transform = `scale(${s})`; };
+  addEventListener('resize', fit); fit();
+  document.fonts.ready.then(() => {
+    if (params.has('t')) return render(+params.get('t'));
+    const start = performance.now();
+    const loop = (now) => { render(((now - start) / 1000) % DURATION); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+  });
+}
+</script>
+</body>
+</html>

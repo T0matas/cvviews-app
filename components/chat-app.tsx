@@ -1,0 +1,1005 @@
+'use client';
+
+import { type ChangeEvent, type CSSProperties, type DragEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
+import {
+  ArrowDown, ArrowUp, BriefcaseBusiness, Check, ChevronDown, ChevronLeft, ChevronRight, Copy, FileText, Globe, Image as ImageIcon, ListChecks, Loader2, LogIn, LogOut, MessageSquareText,
+  Mic, MoreHorizontal, PanelLeftClose, PanelLeftOpen, PanelRight, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings as Gear, Settings2,
+  Brain, Square, SquarePen, ThumbsDown, ThumbsUp, Trash2, UserRound, UsersRound, X,
+} from 'lucide-react';
+import AuthDialog from './auth-dialog';
+import Onboarding from './onboarding';
+import ApplicationsDialog from './applications-dialog';
+import LeoWriting from './leo-writing';
+import Logo from './logo';
+import SmoothProse from './smooth-prose';
+import ScrollRail from './scroll-rail';
+import SettingsDialog, { DEFAULT_SETTINGS, type Settings } from './settings-dialog';
+import { auth } from '@/lib/firebase';
+import { type Rating, sendFeedback, trainingJsonl } from '@/lib/feedback';
+import { clearRemote, EMPTY_MEMORY, isEmpty, loadLocal, loadRemote, MAX_CV, type Memory, saveLocal, saveRemote } from '@/lib/memory';
+import ReviewView, { type CvSource } from './review-view';
+import { readImage, readOriginal, readPdf, readWord, toBase64 } from '@/lib/read-file';
+import { isCvReview, looksLikeCv } from '@/lib/cv-detect';
+import { type FullCv, type Review, reviewSummary } from '@/lib/review';
+import { useRecorder } from '@/lib/use-recorder';
+import { tapHaptic } from '@/lib/haptics';
+import { SEARCH_SIGNAL, type Attachment, type ChatRequest, type Conversation, type Message, type Mode } from '@/lib/types';
+
+// As conversas de quem não entrou ficam na chave antiga; as de cada conta, numa chave com o uid.
+const storageKey = (uid?: string) => (uid ? `cvviews-conversations:${uid}` : 'cvviews-conversations');
+const SETTINGS_KEY = 'cvviews-settings';
+const MAX_FILE_BYTES = 20 * 1024 * 1024;
+const KIND_LABEL = { pdf: 'PDF', text: 'Texto', image: 'Fotografia', word: 'Word' } as const;
+
+const MODES: Record<Mode, { label: string; hint: string; icon: typeof BriefcaseBusiness }> = {
+  recrutador: { label: 'Recrutador', hint: 'Analisar currículos e preparar seleções', icon: BriefcaseBusiness },
+  candidato: { label: 'Candidato', hint: 'Melhorar o meu CV e preparar entrevistas', icon: UsersRound },
+};
+
+const SUGGESTIONS: Record<Mode, { icon: typeof FileText; title: string; hint: string; prompt: string }[]> = {
+  recrutador: [
+    { icon: ListChecks, title: 'Grelha de avaliação', hint: 'Requisitos essenciais e desejáveis', prompt: 'Cria uma grelha de avaliação para uma vaga de Product Designer, separando requisitos essenciais e desejáveis.' },
+    { icon: FileText, title: 'Resumir um CV', hint: 'Experiência e o que confirmar', prompt: 'Vou anexar um currículo. Resume a experiência, as competências e os pontos a confirmar na entrevista.' },
+    { icon: MessageSquareText, title: 'Perguntas de entrevista', hint: 'Avaliar a liderança de equipa', prompt: 'Que perguntas comportamentais devo fazer para avaliar liderança de equipa?' },
+    { icon: UsersRound, title: 'Comparar candidatos', hint: 'Critérios iguais para todos', prompt: 'Como posso comparar candidaturas de forma consistente e justa?' },
+  ],
+  candidato: [
+    { icon: Pencil, title: 'Melhorar o meu CV', hint: 'Melhorias concretas ao currículo', prompt: 'Vou anexar o meu currículo. Que melhorias concretas sugeres?' },
+    { icon: BriefcaseBusiness, title: 'Adaptar a uma vaga', hint: 'Ajustar o CV a um anúncio', prompt: 'Como adapto o meu currículo a um anúncio de emprego específico?' },
+    { icon: MessageSquareText, title: 'Preparar entrevista', hint: 'Respostas às perguntas difíceis', prompt: 'Ajuda-me a preparar respostas para uma entrevista de Analista de Dados.' },
+    { icon: FileText, title: 'Carta de apresentação', hint: 'Curta, clara e convincente', prompt: 'Escreve uma estrutura de carta de apresentação curta e convincente.' },
+  ],
+};
+
+type Pending = Attachment & { id: string; reading?: boolean; source?: CvSource };
+
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+
+function loadConversations(key: string): Conversation[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) ?? '[]');
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function groupLabel(time: number) {
+  const day = 86_400_000;
+  const startOfToday = new Date().setHours(0, 0, 0, 0);
+  if (time >= startOfToday) return 'Hoje';
+  if (time >= startOfToday - day) return 'Ontem';
+  if (time >= startOfToday - 7 * day) return 'Últimos 7 dias';
+  if (time >= startOfToday - 30 * day) return 'Últimos 30 dias';
+  return 'Mais antigas';
+}
+
+function formatSize(bytes: number) {
+  return bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+// Uma resposta que merece o painel: uma revisão de CV, ou texto longo, com tabelas, títulos ou blocos visuais.
+function isRich(m: Message) {
+  return Boolean(m.cvReview) || m.text.length > 320 || /```|^\s*\|.+\|\s*$|^#{1,4}\s/m.test(m.text);
+}
+
+// O título de uma resposta no painel: o primeiro título que ela tem, ou a primeira frase.
+function canvasTitle(m: Message, question = '') {
+  if (m.cvReview) return `Revisão de ${m.cvReview.cvName}`;
+  const heading = /^#{1,4}\s+(.+)$/m.exec(m.text)?.[1];
+  // sem título nem frase própria (uma resposta que é só uma tabela), o título é a pergunta que a pediu
+  const first = (heading ?? m.text.split('\n').find((l) => l.trim() && !l.startsWith('```') && !l.startsWith('|')) ?? (question.trim() || 'Resposta')).replace(/[*_`#>]/g, '').trim();
+  const title = first.charAt(0).toLocaleUpperCase('pt-PT') + first.slice(1);
+  return title.length > 60 ? `${title.slice(0, 57).trimEnd()}…` : title;
+}
+
+export default function ChatApp() {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [newChatMode, setNewChatMode] = useState<Mode>('recrutador');
+  const [draft, setDraft] = useState('');
+  const [pending, setPending] = useState<Pending[]>([]);
+  const [streamingId, setStreamingId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  // No PC, a app abre sempre com a barra lateral aberta; fechada, fica só a faixa de ícones.
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [user, setUser] = useState<User | null>(null);
+  const [authReady, setAuthReady] = useState(false);
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [dialog, setDialogState] = useState<'auth' | 'settings' | 'apps' | null>(null);
+  // No telemóvel, abrir um diálogo fecha a gaveta que estava por trás.
+  const setDialog = (next: 'auth' | 'settings' | 'apps' | null) => { if (next) setDrawerOpen(false); setDialogState(next); };
+  const [searchingId, setSearchingId] = useState<string | null>(null);
+  const [liveAI, setLiveAI] = useState<boolean | null>(null);
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [plusOpen, setPlusOpen] = useState(false);
+  // No PC, o ecrã inicial tem a caixa de mensagem logo abaixo da saudação; no telemóvel, fica em baixo.
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 821px)');
+    const update = () => setWide(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
+  // A saudação segue a hora do dia (calculada no navegador, para usar a hora de quem está a ver).
+  const [greeting, setGreeting] = useState('Olá');
+  useEffect(() => {
+    const update = () => { const h = new Date().getHours(); setGreeting(h >= 5 && h < 12 ? 'Bom dia' : h >= 12 && h < 20 ? 'Boa tarde' : 'Boa noite'); };
+    update();
+    const timer = setInterval(update, 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  const [profileMenu, setProfileMenu] = useState<'rail' | 'panel' | 'top' | null>(null);
+  const [itemMenu, setItemMenu] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [atBottom, setAtBottom] = useState(true);
+  const [dragging, setDragging] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [hydrated, setHydrated] = useState(false);
+  // No telemóvel, quem não tem sessão vê primeiro o ecrã de entrada (até entrar ou saltar).
+  const [skipped, setSkipped] = useState<boolean | null>(null);
+  useEffect(() => { try { setSkipped(localStorage.getItem('cvviews-skip-login') === '1'); } catch { setSkipped(true); } }, []);
+  const skipLogin = () => { setSkipped(true); try { localStorage.setItem('cvviews-skip-login', '1'); } catch { /* armazenamento indisponível */ } };
+
+  const abortRef = useRef<AbortController | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  // A primeira mensagem de uma conversa nova: o ecrã inicial dá lugar à coluna e ao painel, com uma animação.
+  const [entering, setEntering] = useState(false);
+  // Ao sair de uma conversa para o ecrã inicial: o fundo nasce do escuro e a pílula entra (a animação inversa).
+  const [arriving, setArriving] = useState(false);
+  const arriveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const enterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  // Conteúdo dos anexos fica só em memória (pode ser grande demais para o localStorage).
+  const attachmentData = useRef(new Map<string, Attachment[]>());
+  // O ficheiro original de cada revisão (PDF ou fotografias), para desenhar as correções por cima.
+  const cvSources = useRef(new Map<string, CvSource>());
+
+  const active = conversations.find((c) => c.id === activeId) ?? null;
+  const mode = active?.mode ?? newChatMode;
+  const messages = active?.messages ?? [];
+  const isStreaming = streamingId !== null;
+
+  // PC: numa conversa, o chat fica numa coluna à esquerda e as respostas completas num painel à direita.
+  const split = wide && messages.length > 0;
+  const [canvasPick, setCanvasPick] = useState<string | null>(null);
+  const canvasItems = messages.filter((m) => m.role === 'assistant' && isRich(m));
+  const canvasMsg = canvasItems.find((m) => m.id === canvasPick) ?? canvasItems.at(-1) ?? null;
+  const canvasIndex = canvasMsg ? canvasItems.indexOf(canvasMsg) : -1;
+  const questionFor = (m: Message) => messages.slice(0, messages.indexOf(m)).reverse().find((x) => x.role === 'user')?.text ?? '';
+  // Ao mudar de conversa, ou quando começa uma resposta nova, o painel segue a mais recente.
+  useEffect(() => { setCanvasPick(null); }, [activeId, streamingId]);
+
+  useEffect(() => {
+    try {
+      const stored = { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') } as Settings;
+      setSettings(stored);
+      setNewChatMode(stored.defaultMode);
+    } catch { /* armazenamento indisponível */ }
+    if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') navigator.serviceWorker.register('/sw.js').catch(() => {});
+    return onAuthStateChanged(auth(), (next) => { setUser(next); setAuthReady(true); });
+  }, []);
+
+  // Ao entrar ou sair, mostra as conversas dessa conta.
+  useEffect(() => {
+    if (!authReady) return;
+    abortRef.current?.abort();
+    setHydrated(false);
+    setActiveId(null);
+    setConversations(loadConversations(storageKey(user?.uid)));
+    setHydrated(true);
+  }, [authReady, user?.uid]);
+
+  // A memória do Leo desta conta (ou deste dispositivo, sem sessão). Com sessão, a da conta manda; se a conta
+  // ainda não tem nenhuma, fica a deste dispositivo.
+  const [memory, setMemory] = useState<Memory>(EMPTY_MEMORY);
+  const memoryRef = useRef<Memory>(EMPTY_MEMORY);
+  const changeMemory = useCallback((next: Memory) => {
+    memoryRef.current = next;
+    setMemory(next);
+    saveLocal(user?.uid, next);
+    if (user) (isEmpty(next) ? clearRemote(user.uid) : saveRemote(user.uid, next)).catch((err) => console.warn('[memória]', err));
+  }, [user]);
+  useEffect(() => {
+    if (!authReady) return;
+    const local = loadLocal(user?.uid);
+    memoryRef.current = local;
+    setMemory(local);
+    if (!user) return;
+    let gone = false;
+    loadRemote(user.uid).then((remote) => {
+      if (gone) return;
+      if (remote) { memoryRef.current = remote; setMemory(remote); saveLocal(user.uid, remote); }
+      else if (!isEmpty(local)) saveRemote(user.uid, local).catch(() => {});
+    }).catch((err) => console.warn('[memória]', err));
+    return () => { gone = true; };
+  }, [authReady, user]);
+
+  // Depois de uma resposta, o Leo guarda o que ficou a saber de novo (num modelo pequeno, sem a pessoa esperar).
+  const remember = useCallback((question: string, answer: string) => {
+    if (!settings.memory || question.trim().length < 12 || !answer.trim()) return;
+    fetch('/api/memory', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ notes: memoryRef.current.notes, question, answer: answer.slice(0, 4000) }) })
+      .then((res) => res.json())
+      .then((data: { notes?: string[] }) => {
+        if (!Array.isArray(data.notes)) return;
+        const now = memoryRef.current;
+        if (JSON.stringify(data.notes) !== JSON.stringify(now.notes)) changeMemory({ ...now, notes: data.notes });
+      })
+      .catch(() => {});
+  }, [settings.memory, changeMemory]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    try { localStorage.setItem(storageKey(user?.uid), JSON.stringify(conversations)); } catch { /* cheio ou bloqueado */ }
+  }, [conversations, hydrated, user?.uid]);
+
+  // O tema: o do sistema, ou claro/escuro fixo.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (settings.theme === 'system') delete root.dataset.theme;
+    else root.dataset.theme = settings.theme;
+  }, [settings.theme]);
+
+  function updateSettings(next: Settings) {
+    setSettings(next);
+    if (next.defaultMode !== settings.defaultMode && !activeId) setNewChatMode(next.defaultMode);
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch {}
+  }
+
+  const scrollToBottom = useCallback((smooth = false) => {
+    const el = scrollRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' });
+  }, []);
+
+  useEffect(() => { if (atBottom) scrollToBottom(); }, [messages, atBottom, scrollToBottom]);
+  useEffect(() => { setAtBottom(true); scrollToBottom(); }, [activeId, scrollToBottom]);
+
+  // A caixa cresce com o texto. Mede-se só quando tem largura a sério (medida estreita, o texto de exemplo partia
+  // letra a letra e a caixa ficava enorme e vazia) e volta a medir-se quando a largura muda.
+  const hasMessages = messages.length > 0;
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const fit = () => {
+      if (el.clientWidth < 80) return;
+      el.style.height = 'auto';
+      el.style.height = `${Math.min(el.scrollHeight, 220)}px`;
+    };
+    fit();
+    let width = el.clientWidth;
+    const watch = new ResizeObserver(() => { if (Math.abs(el.clientWidth - width) > 1) { width = el.clientWidth; fit(); } });
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [draft, hasMessages, pending.length, wide]);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { setDrawerOpen(false); setModeMenuOpen(false); setPlusOpen(false); setProfileMenu(null); setItemMenu(null); setDialog(null); }
+      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'o') { event.preventDefault(); newChat(); }
+    };
+    const onClick = () => { setModeMenuOpen(false); setPlusOpen(false); setProfileMenu(null); setItemMenu(null); };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('click', onClick);
+    return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('click', onClick); };
+  });
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(''), 3500);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  const updateConversation = (id: string, update: (c: Conversation) => Conversation) =>
+    setConversations((list) => list.map((c) => (c.id === id ? update(c) : c)));
+
+  function closeSidebar() {
+    setDrawerOpen(false);
+    setPanelOpen(false);
+  }
+
+  function focusSearch() {
+    setPanelOpen(true);
+    setTimeout(() => document.querySelector<HTMLInputElement>('.search input')?.focus(), 60);
+  }
+
+  function newChat() {
+    if (activeId) {
+      setArriving(true);
+      if (arriveTimer.current) clearTimeout(arriveTimer.current);
+      arriveTimer.current = setTimeout(() => setArriving(false), 1600);
+    }
+    abortRef.current?.abort();
+    setActiveId(null);
+    setDraft('');
+    setPending([]);
+    setDrawerOpen(false);
+    setPanelOpen(false);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  function openConversation(id: string) {
+    setPanelOpen(false);
+    if (id === activeId) return setDrawerOpen(false);
+    abortRef.current?.abort();
+    setActiveId(id);
+    setDrawerOpen(false);
+  }
+
+  function deleteConversation(id: string) {
+    if (id === activeId) { abortRef.current?.abort(); setActiveId(null); }
+    setConversations((list) => list.filter((c) => c.id !== id));
+  }
+
+  // Lê cada ficheiro logo ao anexar: o texto dos PDFs no navegador; fotografias e PDFs feitos de imagens
+  // são transcritos uma única vez em /api/read. O chip mostra "A ler…" até estar pronto.
+  async function addFiles(files: FileList | File[]) {
+    inputRef.current?.focus();
+    await Promise.all(Array.from(files).map(async (file) => {
+      const lower = file.name.toLowerCase();
+      const isPdf = file.type === 'application/pdf' || lower.endsWith('.pdf');
+      const isImage = /^image\/(jpeg|png|webp)$/.test(file.type) || /\.(jpe?g|png|webp)$/.test(lower);
+      const isWord = lower.endsWith('.docx') || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      const isText = file.type.startsWith('text/') || /\.(txt|md|csv|rtf)$/.test(lower);
+      if (!isPdf && !isImage && !isWord && !isText) return setNotice(`${file.name}: usa PDF, Word, texto ou uma fotografia.`);
+      if (file.size > MAX_FILE_BYTES) return setNotice(`${file.name} excede 20 MB.`);
+
+      const id = uid();
+      const kind = isPdf ? 'pdf' : isImage ? 'image' : isWord ? 'word' : 'text';
+      setPending((list) => [...list, { id, name: file.name, kind, data: '', size: file.size, reading: true }]);
+      const ready = (data: string, source?: CvSource) => setPending((list) => list.map((f) => (f.id === id ? { ...f, data, source, reading: false } : f)));
+      const drop = (message: string) => { setPending((list) => list.filter((f) => f.id !== id)); setNotice(message); };
+      try {
+        if (isText) return ready(await file.text());
+        if (isWord) return ready(await readWord(file));
+        const images = isImage ? [await readImage(file)] : null;
+        const pdf = isPdf ? await readPdf(file) : null;
+        if (pdf && 'text' in pdf) return ready(pdf.text, { pdf: await toBase64(file) });
+        const pages = images ?? (pdf && 'images' in pdf ? pdf.images : []);
+        const response = await fetch('/api/read', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ images: pages }) });
+        const result = (await response.json()) as { text?: string; error?: string };
+        if (!response.ok || !result.text) return drop(result.error || `Não foi possível ler ${file.name}.`);
+        // Fotografias e PDFs feitos de imagens: as correções desenham-se sobre as páginas na melhor qualidade
+        // (a fotografia original, sem recompressão; o PDF desenhado em 4K).
+        let sharp = pdf && 'hires' in pdf ? pdf.hires : pages;
+        if (isImage) {
+          const original = await readOriginal(file);
+          sharp = [original.src];
+          // Uma imagem pequena não ganha detalhe ao ser ampliada: diz-se logo, com o que dá melhor resultado.
+          const side = Math.max(original.width, original.height);
+          if (side < 1400 && looksLikeCv(result.text)) setNotice(`Esta imagem é pequena (${side} px), por isso o CV pode ficar pouco nítido. Para a melhor qualidade, anexa o PDF do CV.`);
+        }
+        ready(result.text, { images: sharp });
+      } catch {
+        drop(`Não foi possível ler ${file.name}.`);
+      }
+    }));
+  }
+
+  // Um CV anexado recebe a revisão do site: nota, anotações sobre o próprio ficheiro e o CV corrigido.
+  async function reviewCv(conversationId: string, history: Message[], files: Pending[], target: string) {
+    const assistantId = uid();
+    const cv = files.find((f) => f.source) ?? files[0];
+    const cvText = files.map((f) => f.data).join('\n\n').trim();
+    if (cv.source) cvSources.current.set(assistantId, cv.source);
+    const base = { cvText, cvName: cv.name, target };
+    const set = (patch: Partial<Message>) => updateConversation(conversationId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === assistantId ? { ...m, ...patch } : m)) }));
+    updateConversation(conversationId, (c) => ({ ...c, messages: [...history, { id: assistantId, role: 'assistant', text: '', cvReview: base }], updatedAt: Date.now() }));
+    setStreamingId(assistantId);
+    setAtBottom(true);
+    try {
+      const response = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cvText, name: cv.name, target }) });
+      setLiveAI(response.status !== 503);
+      const data = (await response.json()) as { review?: Review; error?: string };
+      if (!response.ok || !data.review) throw new Error(data.error || 'Não foi possível rever o CV agora.');
+      set({ text: reviewSummary(data.review), cvReview: { ...base, review: data.review } });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível rever o CV agora.';
+      set({ text: message, error: true, cvReview: { ...base, error: message } });
+    } finally {
+      setStreamingId(null);
+    }
+  }
+
+  const saveFull = (conversationId: string, messageId: string) => (full: FullCv) =>
+    updateConversation(conversationId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === messageId && m.cvReview ? { ...m, cvReview: { ...m.cvReview, full } } : m)) }));
+
+  async function streamReply(conversationId: string, history: Message[], conversationMode: Mode) {
+    const assistantId = uid();
+    updateConversation(conversationId, (c) => ({ ...c, messages: [...history, { id: assistantId, role: 'assistant', text: '' }], updatedAt: Date.now() }));
+    setStreamingId(assistantId);
+    setAtBottom(true);
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const payload: ChatRequest = {
+      mode: conversationMode,
+      web: settings.web,
+      messages: history.map((m) => ({ role: m.role, text: m.text, attachments: attachmentData.current.get(m.id) })),
+      memory: settings.memory && !isEmpty(memoryRef.current) ? memoryRef.current : undefined,
+    };
+
+    let text = '';
+    const write = (error = false) =>
+      updateConversation(conversationId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === assistantId ? { ...m, text, error } : m)) }));
+
+    try {
+      const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: controller.signal });
+      setLiveAI(response.headers.get('X-CVViews-Mode') === 'live');
+      if (!response.ok || !response.body) throw new Error(await response.text());
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let frame = 0;
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+        if (text.includes(SEARCH_SIGNAL)) { text = text.replaceAll(SEARCH_SIGNAL, ''); setSearchingId(assistantId); }
+        if (!frame) frame = requestAnimationFrame(() => { frame = 0; write(); });
+      }
+      cancelAnimationFrame(frame);
+      write();
+      remember(history.at(-1)?.text ?? '', text);
+    } catch {
+      if (controller.signal.aborted) { write(); }
+      else { text = text || 'Não foi possível obter uma resposta. Verifica a ligação e tenta de novo.'; write(true); }
+    } finally {
+      if (abortRef.current === controller) abortRef.current = null;
+      setStreamingId(null);
+      setSearchingId(null);
+    }
+  }
+
+  function send(textOverride?: string) {
+    const text = (textOverride ?? draft).trim();
+    if ((!text && !pending.length) || isStreaming) return;
+    if (pending.some((f) => f.reading)) return setNotice('Espera um instante, ainda estou a ler o ficheiro.');
+    void tapHaptic();
+
+    const userMessage: Message = {
+      id: uid(),
+      role: 'user',
+      text,
+      attachments: pending.length ? pending.map(({ name, kind, size }) => ({ name, kind, size })) : undefined,
+    };
+    if (pending.length) attachmentData.current.set(userMessage.id, pending.map(({ name, kind, data, size }) => ({ name, kind, data, size })));
+
+    let conversationId = activeId;
+    let history: Message[];
+    if (!active) {
+      conversationId = uid();
+      const title = (text || pending[0]?.name || 'Nova conversa').replace(/\s+/g, ' ').slice(0, 48);
+      history = [userMessage];
+      setConversations((list) => [{ id: conversationId!, title, mode, messages: history, updatedAt: Date.now() }, ...list]);
+      setActiveId(conversationId);
+      {
+        setEntering(true);
+        if (enterTimer.current) clearTimeout(enterTimer.current);
+        enterTimer.current = setTimeout(() => setEntering(false), 1700);
+      }
+    } else {
+      history = [...active.messages, userMessage];
+    }
+
+    const files = pending;
+    const allText = files.map((f) => f.data).join('\n\n');
+    // Um CV anexado é revisto como no site (o texto escrito com ele conta como a vaga). Outro documento
+    // (um trabalho, uma ficha, um teste) vai para o Leo, que faz o que a pessoa pede: "faz" responde às perguntas.
+    const review = files.some((f) => f.data.trim().length >= 40) && isCvReview(allText, text);
+    // Só um CV fica na memória, para as próximas conversas.
+    const cvFile = review ? files.find((f) => f.data.trim().length >= 200) : undefined;
+    if (settings.memory && cvFile) changeMemory({ ...memoryRef.current, cv: { name: cvFile.name, text: cvFile.data.trim().slice(0, MAX_CV) } });
+    setDraft('');
+    setPending([]);
+    if (review) void reviewCv(conversationId!, history, files, text);
+    else void streamReply(conversationId!, history, mode);
+  }
+
+  function regenerate() {
+    if (!active || isStreaming) return;
+    const lastUser = active.messages.findLastIndex((m) => m.role === 'user');
+    if (lastUser >= 0) void streamReply(active.id, active.messages.slice(0, lastUser + 1), active.mode);
+  }
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    send();
+  }
+
+  // 👍/👎 numa resposta: fica na conversa e, com sessão, segue para o projeto (para melhorar o Leo).
+  function rate(message: Message, rating: Rating) {
+    if (!active) return;
+    const next = message.feedback === rating ? undefined : rating;
+    const id = active.id;
+    updateConversation(id, (c) => ({ ...c, messages: c.messages.map((x) => (x.id === message.id ? { ...x, feedback: next } : x)) }));
+    if (!next) return;
+    const index = active.messages.findIndex((x) => x.id === message.id);
+    const question = active.messages.slice(0, index).reverse().find((x) => x.role === 'user')?.text ?? '';
+    setNotice(next === 'up' ? 'Obrigado. Isto ajuda o Leo a melhorar.' : 'Obrigado. Vamos usar isto para melhorar o Leo.');
+    sendFeedback({ rating: next, mode: active.mode, question, answer: message.text }).catch((err) => console.warn('[feedback]', err));
+  }
+
+  function exportTraining() {
+    const data = trainingJsonl(conversations);
+    if (!data) return setNotice('Ainda não há respostas com 👍 para exportar.');
+    const url = URL.createObjectURL(new Blob([`${data}\n`], { type: 'application/jsonl' }));
+    const link = Object.assign(document.createElement('a'), { href: url, download: `cvviews-treino-${new Date().toISOString().slice(0, 10)}.jsonl` });
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  async function copy(message: Message) {
+    try {
+      await navigator.clipboard.writeText(message.text);
+      setCopiedId(message.id);
+      setTimeout(() => setCopiedId((id) => (id === message.id ? null : id)), 1600);
+    } catch {
+      setNotice('Não foi possível copiar.');
+    }
+  }
+
+  function changeMode(next: Mode) {
+    setModeMenuOpen(false);
+    if (active && active.messages.length) updateConversation(active.id, (c) => ({ ...c, mode: next }));
+    else setNewChatMode(next);
+  }
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase('pt-PT');
+    const list = q ? conversations.filter((c) => c.title.toLocaleLowerCase('pt-PT').includes(q) || c.messages.some((m) => m.text.toLocaleLowerCase('pt-PT').includes(q))) : conversations;
+    const sorted = [...list].sort((a, b) => b.updatedAt - a.updatedAt);
+    const groups: { label: string; items: Conversation[] }[] = [];
+    const pinned = sorted.filter((c) => c.pinned);
+    if (pinned.length) groups.push({ label: 'Fixadas', items: pinned });
+    for (const c of sorted.filter((c) => !c.pinned)) {
+      const label = groupLabel(c.updatedAt);
+      const group = groups.find((g) => g.label === label);
+      if (group) group.items.push(c); else groups.push({ label, items: [c] });
+    }
+    return groups;
+  }, [conversations, query]);
+
+  const userName = settings.displayName.trim() || user?.displayName || '';
+  const firstName = userName.split(/\s+/)[0];
+  const initials = (userName || user?.email || '').trim().split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase();
+  const canSend = (draft.trim().length > 0 || pending.length > 0) && !isStreaming && !pending.some((f) => f.reading);
+
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  const recorder = useRecorder({
+    language: settings.voiceLang,
+    onText: useCallback((text: string) => {
+      if (settings.autoSendVoice) return sendRef.current(text);
+      setDraft((current) => (current.trim() ? `${current.trimEnd()} ${text}` : text));
+      inputRef.current?.focus();
+    }, [settings.autoSendVoice]),
+    onError: useCallback((message: string) => setNotice(message), []),
+  });
+
+  function exportConversations() {
+    const blob = new Blob([JSON.stringify(conversations, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = Object.assign(document.createElement('a'), { href: url, download: `cvviews-conversas-${new Date().toISOString().slice(0, 10)}.json` });
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  function clearAll() {
+    if (!window.confirm('Eliminar todas as conversas deste dispositivo?')) return;
+    abortRef.current?.abort();
+    setConversations([]);
+    setActiveId(null);
+  }
+
+  async function logout() {
+    setProfileMenu(null);
+    setDialog(null);
+    await signOut(auth()).catch(() => setNotice('Não foi possível terminar a sessão.'));
+  }
+
+  const avatar = user?.photoURL
+    ? <img className="avatar" src={user.photoURL} alt="" referrerPolicy="no-referrer" />
+    : <span className="avatar">{initials || <UserRound size={16} />}</span>;
+
+  const onDrop = (event: DragEvent) => {
+    event.preventDefault();
+    setDragging(false);
+    if (event.dataTransfer.files.length) void addFiles(event.dataTransfer.files);
+  };
+
+  // O modo (Recrutador/Candidato). No PC fica dentro da caixa, à direita, ao lado do microfone;
+  // no telemóvel, por baixo da caixa.
+  const modeInComposer = true;
+  const modePicker = (extra = '') => (
+    <div className={`mode-picker ${extra}`}>
+      <button type="button" className="meta-btn" onClick={(e) => { e.stopPropagation(); setModeMenuOpen((o) => !o); }} aria-haspopup="menu" aria-expanded={modeMenuOpen} title="Mudar o modo">
+        {MODES[mode].label}<ChevronDown size={14} />
+      </button>
+      {modeMenuOpen && (
+        <div className="menu mode-menu" role="menu" onClick={(e) => e.stopPropagation()}>
+          {(Object.keys(MODES) as Mode[]).map((key) => {
+            const Icon = MODES[key].icon;
+            return (
+              <button key={key} role="menuitemradio" aria-checked={mode === key} onClick={() => changeMode(key)}>
+                <span className="mode-icon"><Icon size={16} /></span>
+                <span className="mode-copy"><strong>{MODES[key].label}</strong><small>{MODES[key].hint}</small></span>
+                {mode === key && <Check size={16} className="mode-check" />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  const composer = (
+  <div className="composer-wrap">
+    {!atBottom && messages.length > 0 && <button className="to-bottom" onClick={() => { setAtBottom(true); scrollToBottom(true); }} aria-label="Ir para o fim"><ArrowDown size={17} /></button>}
+    <form className="composer" onSubmit={handleSubmit}>
+      {pending.length > 0 && (
+        <div className="pending">
+          {pending.map((file) => (
+            <div className={`file-chip${file.reading ? ' is-reading' : ''}`} key={file.id}>
+              <span className={`file-icon ${file.kind}`}>{file.reading ? <Loader2 size={16} className="spin" /> : file.kind === 'image' ? <ImageIcon size={16} /> : <FileText size={16} />}</span>
+              <span><strong>{file.name}</strong><small>{file.reading ? 'A ler…' : `${KIND_LABEL[file.kind]} · ${formatSize(file.size)}`}</small></span>
+              <button type="button" onClick={() => setPending((list) => list.filter((f) => f.id !== file.id))} aria-label={`Remover ${file.name}`}><X size={13} /></button>
+            </div>
+          ))}
+        </div>
+      )}
+      <textarea
+        ref={inputRef}
+        value={draft}
+        rows={1}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          const touch = window.matchMedia('(pointer: coarse)').matches;
+          if (e.key === 'Enter' && !e.shiftKey && settings.enterToSend && !touch && !e.nativeEvent.isComposing) { e.preventDefault(); send(); }
+        }}
+        onPaste={(e) => { if (e.clipboardData.files.length) { e.preventDefault(); void addFiles(e.clipboardData.files); } }}
+        placeholder={messages.length ? 'Responde ao Leo…' : mode === 'recrutador' ? 'Cola um CV ou descreve a vaga…' : 'Cola o teu CV ou pergunta ao Leo…'}
+        aria-label="Mensagem"
+      />
+      <input ref={fileRef} type="file" hidden multiple accept=".pdf,.docx,.txt,.md,.jpg,.jpeg,.png,.webp,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,image/jpeg,image/png,image/webp" onChange={(e: ChangeEvent<HTMLInputElement>) => { if (e.target.files) void addFiles(e.target.files); e.target.value = ''; }} />
+      {recorder.state === 'recording' ? (
+        <div className="composer-row recording">
+          <button type="button" className="tool-btn" onClick={recorder.cancel} aria-label="Cancelar gravação" title="Cancelar"><X size={18} /></button>
+          <div className="wave" aria-hidden="true">{recorder.levels.map((level, i) => <i key={i} style={{ transform: `scaleY(${Math.max(0.08, level)})` }} />)}</div>
+          <span className="rec-time"><span className="rec-dot" />{Math.floor(recorder.seconds / 60)}:{String(recorder.seconds % 60).padStart(2, '0')}</span>
+          <button type="button" className="send-btn" onClick={recorder.finish} aria-label="Terminar e transcrever" title="Terminar"><Check size={18} strokeWidth={2.4} /></button>
+        </div>
+      ) : (
+        <div className="composer-row">
+          <div className="plus">
+            <button type="button" className="tool-btn" onClick={(e) => { e.stopPropagation(); setPlusOpen((o) => !o); }} aria-label="Adicionar" aria-expanded={plusOpen} title="Adicionar"><Plus size={20} /></button>
+            {plusOpen && (
+              <div className="menu plus-menu" onClick={(e) => e.stopPropagation()}>
+                <button type="button" onClick={() => { setPlusOpen(false); fileRef.current?.click(); }}><Paperclip size={16} /> Adicionar CV ou fotografia</button>
+                <button type="button" onClick={() => updateSettings({ ...settings, web: !settings.web })}><Globe size={16} /> Pesquisa na web<span className={`switch mini${settings.web ? ' is-on' : ''}`}><i /></span></button>
+              </div>
+            )}
+          </div>
+          {modeInComposer && modePicker('in-composer')}
+          <button type="button" className="tool-btn mic-btn" onClick={recorder.start} disabled={recorder.state === 'transcribing'} aria-label="Ditar por voz" title="Ditar por voz">
+            {recorder.state === 'transcribing' ? <Loader2 size={18} className="spin" /> : <Mic size={18} />}
+          </button>
+          {isStreaming ? (
+            <button type="button" className="send-btn is-stop" onClick={() => abortRef.current?.abort()} aria-label="Parar resposta"><Square size={13} fill="currentColor" /></button>
+          ) : (
+            <button type="submit" className={`send-btn${canSend ? '' : ' is-idle'}`} disabled={!canSend} aria-label="Enviar"><ArrowUp size={18} strokeWidth={2.4} /></button>
+          )}
+        </div>
+      )}
+    </form>
+
+    {!messages.length ? (
+      // No ecrã inicial do PC, uma barra presa por baixo da caixa: anexar, pesquisa na web e memória.
+      <div className="tray">
+        <button type="button" className="tray-btn" onClick={() => fileRef.current?.click()}><Paperclip size={15} /> Anexar<span className="tray-long"> ficheiro</span></button>
+        <button type="button" className={`tray-btn${settings.web ? ' is-on' : ''}`} onClick={() => updateSettings({ ...settings, web: !settings.web })} aria-pressed={settings.web}><Globe size={15} /> Pesquisa<span className="tray-long"> na web</span></button>
+        <button type="button" className="tray-btn tray-end" onClick={() => updateSettings({ ...settings, memory: !settings.memory })} aria-pressed={settings.memory} title="O Leo lembra-se de ti entre conversas">
+          <Brain size={15} /> Memória <b>{settings.memory ? 'ligada' : 'desligada'}</b>
+        </button>
+      </div>
+    ) : (
+      <div className="composer-meta">
+        {!modeInComposer && modePicker()}
+        <button type="button" className="meta-btn" onClick={() => updateSettings({ ...settings, web: !settings.web })} title={settings.web ? 'Desligar a pesquisa na web' : 'Ligar a pesquisa na web'}>
+          <strong>Leo</strong><span>{settings.web ? 'Com web' : 'Sem web'}</span>
+        </button>
+      </div>
+    )}
+  </div>
+  );
+
+  // O corpo de uma resposta do Leo: na conversa ou no painel à direita.
+  const assistantBody = (m: Message, isLast: boolean) => {
+    const writing = m.id === streamingId;
+    const thinking = writing && !m.text;
+    return (
+      <div className="assistant-body">
+        {m.cvReview ? (
+          <ReviewView {...m.cvReview} source={cvSources.current.get(m.id)} onFull={saveFull(active!.id, m.id)} />
+        ) : thinking ? <LeoWriting label={searchingId === m.id ? 'A pesquisar na web' : 'A pensar'} /> : (
+          <SmoothProse text={m.text} streaming={writing} />
+        )}
+        {writing && !thinking && !m.cvReview && <LeoWriting />}
+        {m.id !== streamingId && m.text && !m.cvReview && (
+          <div className="msg-actions">
+            <button onClick={() => copy(m)} aria-label="Copiar" title="Copiar">{copiedId === m.id ? <Check size={15} /> : <Copy size={15} />}</button>
+            {isLast && <button onClick={regenerate} aria-label="Gerar novamente" title="Gerar novamente"><RotateCcw size={15} /></button>}
+            {!m.error && <>
+              <button className={m.feedback === 'up' ? 'is-on' : ''} onClick={() => rate(m, 'up')} aria-label="Boa resposta" aria-pressed={m.feedback === 'up'} title="Boa resposta"><ThumbsUp size={15} /></button>
+              <button className={m.feedback === 'down' ? 'is-on' : ''} onClick={() => rate(m, 'down')} aria-label="Má resposta" aria-pressed={m.feedback === 'down'} title="Má resposta"><ThumbsDown size={15} /></button>
+            </>}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const accountMenu = (where: 'rail' | 'panel' | 'top') => profileMenu === where && (
+    <div className={`menu settings-menu from-${where}`} onClick={(e) => e.stopPropagation()}>
+      {user?.email && <div className="menu-email" title={user.email}>{user.email}</div>}
+      <button onClick={() => { setProfileMenu(null); setDialog('settings'); }}><Settings2 size={15} /> Configurações</button>
+      <button onClick={logout}><LogOut size={15} /> Terminar sessão</button>
+    </div>
+  );
+
+  return (
+    <div className={`app${panelOpen ? ' panel-open' : ''}${drawerOpen ? ' drawer-open' : ''}${arriving && !messages.length ? ' is-arriving' : ''}`}>
+      <div className="scrim" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
+
+      {/* PC: a faixa de ícones, sempre à vista. */}
+      <nav className="rail" aria-label="Navegação">
+        <button className="rail-logo" onClick={() => setPanelOpen(!panelOpen)} aria-label={panelOpen ? 'Fechar barra lateral' : 'Abrir barra lateral'} aria-expanded={panelOpen} title={panelOpen ? 'Fechar barra lateral' : 'Abrir barra lateral'}>
+          <Logo />
+          <span className="rail-logo-hover">{panelOpen ? <PanelLeftClose size={20} strokeWidth={1.7} /> : <PanelLeftOpen size={20} strokeWidth={1.7} />}</span>
+        </button>
+        <button className="rail-btn is-on" onClick={() => setPanelOpen(!panelOpen)} aria-label="Conversas" aria-expanded={panelOpen} title="Conversas"><MessageSquareText size={21} strokeWidth={1.7} /></button>
+        <button className="rail-btn" onClick={focusSearch} aria-label="Pesquisar conversas" title="Pesquisar conversas"><Search size={21} strokeWidth={1.7} /></button>
+        <button className="rail-btn" onClick={() => setDialog('apps')} aria-label="Candidaturas" title="Candidaturas"><BriefcaseBusiness size={21} strokeWidth={1.7} /></button>
+        <div className="rail-foot">
+          {authReady && !user && <button className="rail-btn" onClick={() => setDialog('auth')} aria-label="Entrar" title="Entrar"><LogIn size={21} strokeWidth={1.7} /></button>}
+          <button className="rail-btn" onClick={() => setDialog('settings')} aria-label="Configurações" title="Configurações"><Gear size={21} strokeWidth={1.7} /></button>
+          {user && <button className="rail-avatar" onClick={(e) => { e.stopPropagation(); setProfileMenu(profileMenu === 'rail' ? null : 'rail'); }} aria-label="A tua conta" title={userName || user.email || 'A tua conta'}>{avatar}</button>}
+          {accountMenu('rail')}
+        </div>
+      </nav>
+
+      {/* A lista de conversas: ao lado da faixa no PC, gaveta no telemóvel. */}
+      <aside className="sidebar" aria-label="Conversas">
+        <div className="sidebar-top">
+          <span className="brand-word">CVviews</span>
+          <button className="close-btn" onClick={closeSidebar} aria-label="Fechar" title="Fechar"><X size={19} /></button>
+        </div>
+
+        <button className="side-row new-chat is-on" onClick={newChat}><SquarePen size={19} /> Nova conversa <kbd className="desktop-only">Ctrl ⇧ O</kbd></button>
+
+        <label className="side-row search">
+          <Search size={19} />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Pesquisar conversas" aria-label="Pesquisar conversas" />
+          {query && <button onClick={() => setQuery('')} aria-label="Limpar pesquisa"><X size={14} /></button>}
+        </label>
+
+        <button className="side-row" onClick={() => setDialog('apps')}><BriefcaseBusiness size={19} /> Candidaturas{(memory.applications?.length ?? 0) > 0 && <span className="side-count">{memory.applications!.length}</span>}</button>
+        <button className="side-row phone-row" onClick={() => setDialog('settings')}><Gear size={19} /> Configurações</button>
+
+        <nav className="history">
+          {hydrated && !conversations.length && <p className="history-empty">As tuas conversas aparecem aqui.</p>}
+          {hydrated && conversations.length > 0 && !filtered.length && <p className="history-empty">Nenhuma conversa encontrada.</p>}
+          {filtered.map((group) => (
+            <section key={group.label}>
+              <h3>{group.label}</h3>
+              {group.items.map((c) => (
+                <div className={`history-item${c.id === activeId ? ' is-active' : ''}${itemMenu === c.id ? ' menu-open' : ''}`} key={c.id} onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setItemMenu(c.id); }}>
+                  {renaming?.id === c.id ? (
+                    <form onSubmit={(e) => { e.preventDefault(); updateConversation(c.id, (x) => ({ ...x, title: renaming.title.trim() || x.title })); setRenaming(null); }}>
+                      <input autoFocus value={renaming.title} onChange={(e) => setRenaming({ id: c.id, title: e.target.value })} onBlur={(e) => e.currentTarget.form?.requestSubmit()} aria-label="Novo título" />
+                    </form>
+                  ) : (
+                    <button className="history-link" onClick={() => openConversation(c.id)} title={c.title}>
+                      {c.pinned && <Pin size={12} className="pin-icon" />}<span>{c.title}</span>
+                    </button>
+                  )}
+                  <button className="history-more" aria-label="Opções da conversa" onClick={(e) => { e.stopPropagation(); setItemMenu(itemMenu === c.id ? null : c.id); }}><MoreHorizontal size={17} /></button>
+                  {itemMenu === c.id && (
+                    <div className="menu history-menu" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => { setRenaming({ id: c.id, title: c.title }); setItemMenu(null); }}><Pencil size={15} /> Mudar o nome</button>
+                      <button onClick={() => { updateConversation(c.id, (x) => ({ ...x, pinned: !x.pinned })); setItemMenu(null); }}>{c.pinned ? <><PinOff size={15} /> Desafixar</> : <><Pin size={15} /> Fixar</>}</button>
+                      <button className="danger" onClick={() => { deleteConversation(c.id); setItemMenu(null); }}><Trash2 size={15} /> Eliminar</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </section>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          {authReady && !user ? (
+            <button className="signin-btn" onClick={() => setDialog('auth')}><LogIn size={19} /> Entrar</button>
+          ) : (
+            <button className="profile" onClick={(e) => { e.stopPropagation(); setProfileMenu(profileMenu === 'panel' ? null : 'panel'); }} aria-expanded={profileMenu === 'panel'}>
+              {avatar}
+              <span className="profile-text"><strong>{userName || user?.email || ' '}</strong></span>
+              <MoreHorizontal size={16} />
+            </button>
+          )}
+          {accountMenu('panel')}
+        </div>
+      </aside>
+
+      {/* PC: as conversas abrem por cima, a partir da esquerda; um clique fora fecha-as. */}
+      <div className="panel-scrim desktop-only" onClick={() => setPanelOpen(false)} aria-hidden="true" />
+
+      {/* PC: os atalhos numa pílula a flutuar à direita. */}
+      <nav className="dock desktop-only" aria-label="Atalhos">
+        <button className={`dock-btn${!active && !panelOpen ? ' is-on' : ''}`} onClick={newChat} aria-label="Nova conversa" title="Nova conversa"><SquarePen size={19} strokeWidth={1.7} /></button>
+        <button className="dock-btn" onClick={() => setDialog('apps')} aria-label="Candidaturas" title="Candidaturas"><BriefcaseBusiness size={19} strokeWidth={1.7} /></button>
+        <button className={`dock-btn${panelOpen ? ' is-on' : ''}`} onClick={() => setPanelOpen(!panelOpen)} aria-label="Conversas" aria-expanded={panelOpen} title="Conversas"><MessageSquareText size={19} strokeWidth={1.7} /></button>
+        <span className="dock-sep" aria-hidden="true" />
+        <button className="dock-btn" onClick={() => setDialog('settings')} aria-label="Configurações" title="Configurações"><Gear size={19} strokeWidth={1.7} /></button>
+      </nav>
+
+      <main className={`main${split ? ' is-split' : ''}${messages.length > 0 && entering ? ' is-entering' : ''}`} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }} onDrop={onDrop}>
+        <header className="topbar">
+          <nav className="mnav mobile-only" aria-label="Navegação">
+              <button className={`mnav-link${!drawerOpen ? ' is-on' : ''}`} onClick={newChat}>Leo</button>
+              <button className="mnav-link" onClick={() => setDialog('apps')}>Candidaturas</button>
+              <button className={`mnav-link${drawerOpen ? ' is-on' : ''}`} onClick={() => setDrawerOpen(true)}>Conversas</button>
+              <button className="mnav-icon" onClick={() => setDialog('settings')} aria-label="Configurações"><Gear size={18} strokeWidth={1.8} /></button>
+            </nav>
+          <div className="topbar-brand desktop-only">
+            <span className="brand-word">CVviews</span>
+          </div>
+          <span className="topbar-title">{active?.title ?? ''}</span>
+          {liveAI === false && <span className="demo-badge" title="Sem GROQ_API_KEY: respostas de demonstração">Demo</span>}
+          <button className={`icon-btn new-btn${active ? '' : ' mobile-only'}`} onClick={newChat} aria-label="Nova conversa" title="Nova conversa"><SquarePen size={19} /></button>
+          <div className="topbar-account desktop-only">
+            {authReady && !user ? (
+              <button className="topbar-signin" onClick={() => setDialog('auth')}><LogIn size={16} /> Entrar</button>
+            ) : user ? (
+              <button className="topbar-avatar" onClick={(e) => { e.stopPropagation(); setProfileMenu(profileMenu === 'top' ? null : 'top'); }} aria-label="A tua conta" title={userName || user.email || 'A tua conta'}>{avatar}</button>
+            ) : null}
+            {accountMenu('top')}
+          </div>
+        </header>
+
+        {messages.length > 0 && (
+          <div className="chathead">
+            <button className="chathead-back" onClick={newChat}><ChevronLeft size={16} /> Nova conversa</button>
+            <span className="chathead-leo"><Logo className="chathead-logo" /><b>Leo</b><small>{isStreaming ? 'a escrever…' : MODES[mode].label}</small></span>
+          </div>
+        )}
+
+        <div className="thread" ref={scrollRef} onScroll={(e) => { const el = e.currentTarget; setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 80); }}>
+          {!messages.length ? (
+            <div className="welcome">
+              <div className="mode-switch" role="radiogroup" aria-label="Modo" style={{ '--at': (Object.keys(MODES) as Mode[]).indexOf(mode) } as CSSProperties}>
+                {(Object.keys(MODES) as Mode[]).map((key) => (
+                  <button key={key} role="radio" aria-checked={mode === key} className={mode === key ? 'is-on' : ''} onClick={() => changeMode(key)}>{MODES[key].label}</button>
+                ))}
+              </div>
+              <div className="hello">
+                {/* PC: a linha do Leo em PNG (branca, com sombra) sobre o azul; telemóvel: o traço em SVG, na cor do texto. */}
+                <img className="hello-mark desktop-only" src="/leo-mark.png" alt="" width={240} height={150} />
+                <Logo className="hello-logo mobile-only" />
+                <h1><span className="hello-name">{greeting}{firstName ? `, ${firstName}` : ''}</span><span className="hello-q"> O que vamos fazer hoje?</span></h1>
+              </div>
+              {composer}
+              <div className="ideas">
+                {SUGGESTIONS[mode].map(({ icon: Icon, title, hint, prompt }, i) => (
+                  <button key={title} className="idea" style={{ animationDelay: `${0.1 + i * 0.05}s` }} onClick={() => { if (prompt.startsWith('Vou anexar')) { setDraft(prompt); fileRef.current?.click(); } else send(prompt); }}>
+                    <span className="idea-icon"><Icon size={22} strokeWidth={1.6} /></span>
+                    <span className="idea-text"><strong>{title}</strong><small>{hint}</small></span>
+                    <ChevronRight size={20} className="idea-chevron" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="messages" aria-live="polite">
+              {messages.map((m, index) => {
+                const isLast = index === messages.length - 1;
+                const writing = m.id === streamingId;
+                const thinking = writing && !m.text;
+                return m.role === 'user' ? (
+                  <div className="msg msg-user" key={m.id}>
+                    {m.attachments?.map((file) => (
+                      <div className="file-chip in-thread" key={file.name}><span className={`file-icon ${file.kind}`}>{file.kind === 'image' ? <ImageIcon size={16} /> : <FileText size={16} />}</span><span><strong>{file.name}</strong><small>{KIND_LABEL[file.kind]} · {formatSize(file.size)}</small></span></div>
+                    ))}
+                    {m.text && <div className="bubble">{m.text}</div>}
+                  </div>
+                ) : split && isRich(m) && !thinking ? (
+                  // No PC, a resposta completa vai para o painel à direita; aqui fica um cartão que a abre.
+                  <div className="msg msg-assistant" key={m.id}>
+                    <button className={`canvas-card${canvasMsg?.id === m.id ? ' is-on' : ''}`} onClick={() => setCanvasPick(m.id)}>
+                      <span className="canvas-card-icon">{m.cvReview ? <FileText size={17} /> : <PanelRight size={17} />}</span>
+                      <span className="canvas-card-text"><strong>{canvasTitle(m, questionFor(m))}</strong><small>{writing ? 'A escrever…' : canvasMsg?.id === m.id ? 'Aberto no painel' : 'Abrir no painel'}</small></span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className={`msg msg-assistant${m.error ? ' is-error' : ''}`} key={m.id}>
+                    {assistantBody(m, isLast)}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <ScrollRail target={scrollRef} />
+
+        {messages.length > 0 && composer}
+
+        {/* PC: o painel com a resposta completa (tabelas, revisões de CV, respostas longas). */}
+        {split && (
+          <section className="canvas" aria-label="Painel">
+            {canvasMsg ? (
+              <>
+                <header className="canvas-head">
+                  <strong>{canvasTitle(canvasMsg, questionFor(canvasMsg))}</strong>
+                  {canvasItems.length > 1 && (
+                    <span className="canvas-nav">
+                      <button className="icon-btn" disabled={canvasIndex <= 0} onClick={() => setCanvasPick(canvasItems[canvasIndex - 1].id)} aria-label="Resposta anterior"><ChevronLeft size={17} /></button>
+                      <span>{canvasIndex + 1} de {canvasItems.length}</span>
+                      <button className="icon-btn" disabled={canvasIndex >= canvasItems.length - 1} onClick={() => setCanvasPick(canvasItems[canvasIndex + 1].id)} aria-label="Resposta seguinte"><ChevronRight size={17} /></button>
+                    </span>
+                  )}
+                </header>
+                <div className="canvas-body" ref={canvasRef}><div className="canvas-page" key={canvasMsg.id}>{assistantBody(canvasMsg, canvasMsg.id === messages.at(-1)?.id)}</div></div>
+                <ScrollRail target={canvasRef} />
+              </>
+            ) : (
+              <div className="canvas-empty">
+                <PanelRight size={26} strokeWidth={1.5} />
+                <span>{isStreaming ? 'A preparar a resposta' : 'Tabelas, revisões de CV e respostas longas aparecem aqui.'}</span>
+              </div>
+            )}
+          </section>
+        )}
+
+        {dragging && <div className="drop-overlay"><Paperclip size={26} /><strong>Larga o currículo aqui</strong><span>PDF, TXT ou fotografia, até 20 MB</span></div>}
+        {notice && <div className="toast" role="status">{notice}</div>}
+      </main>
+
+      {!wide && authReady && !user && skipped === false && <Onboarding onEmail={() => setDialog('auth')} onSkip={skipLogin} />}
+      {dialog === 'auth' && <AuthDialog onClose={() => setDialog(null)} />}
+      {dialog === 'apps' && (
+        <ApplicationsDialog
+          items={memory.applications ?? []}
+          onChange={(next) => changeMemory({ ...memoryRef.current, applications: next })}
+          onAdapt={(a) => {
+            setDialog(null);
+            newChat();
+            setNewChatMode('candidato');
+            setDraft(`Adapta o meu CV a esta vaga: ${a.role || 'vaga'}${a.company ? ` na ${a.company}` : ''}.${a.link ? ` Anúncio: ${a.link}` : ''} Mostra-me o que mudar, com antes e depois, e as palavras-chave que faltam.`);
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+      {dialog === 'settings' && (
+        <SettingsDialog
+          settings={settings}
+          onChange={updateSettings}
+          user={user}
+          conversationCount={conversations.length}
+          onExport={exportConversations}
+          onExportTraining={exportTraining}
+          memory={memory}
+          onMemoryChange={changeMemory}
+          onClearAll={clearAll}
+          onSignIn={() => setDialog('auth')}
+          onSignOut={logout}
+          onClose={() => setDialog(null)}
+        />
+      )}
+    </div>
+  );
+}
