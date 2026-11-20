@@ -1,4 +1,5 @@
 import type { FullCv, Review } from './review';
+import type { CvEdit } from '@/components/cv-editor';
 
 export type Role = 'user' | 'assistant';
 
@@ -20,7 +21,7 @@ export type Message = {
   /** A avaliação de quem leu a resposta (👍/👎). */
   feedback?: 'up' | 'down';
   /** Presente quando a resposta é a revisão de um CV anexado (como no site). */
-  cvReview?: { cvText: string; cvName: string; target: string; review?: Review; full?: FullCv; error?: string };
+  cvReview?: { cvText: string; cvName: string; target: string; review?: Review; full?: FullCv; error?: string; /** O CV como ficou no editor (texto e desenho). */ edit?: CvEdit };
 };
 
 export type Conversation = {

@@ -13,6 +13,7 @@ import ApplicationsDialog from './applications-dialog';
 import LeoWriting from './leo-writing';
 import Logo from './logo';
 import SmoothProse from './smooth-prose';
+import CvEditor, { type CvEdit } from './cv-editor';
 import ScrollRail from './scroll-rail';
 import SettingsDialog, { DEFAULT_SETTINGS, type Settings } from './settings-dialog';
 import { auth } from '@/lib/firebase';
@@ -478,6 +479,15 @@ export default function ChatApp() {
       setStreamingId(null);
     }
   }
+
+  // o CV como ficou no editor
+  const saveEdit = (conversationId: string, messageId: string, edit: CvEdit) =>
+    updateConversation(conversationId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === messageId && m.cvReview ? { ...m, cvReview: { ...m.cvReview, edit } } : m)) }));
+  const saveEditRef = useRef(saveEdit);
+  saveEditRef.current = saveEdit;
+  const onEditSave = useCallback((edit: CvEdit) => { const id = editTarget.current; if (id) saveEditRef.current(id.conversation, id.message, edit); }, []);
+  const editTarget = useRef<{ conversation: string; message: string } | null>(null);
+  const [canvasTab, setCanvasTab] = useState<'editor' | 'review'>('editor');
 
   const saveFull = (conversationId: string, messageId: string) => (full: FullCv) =>
     updateConversation(conversationId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === messageId && m.cvReview ? { ...m, cvReview: { ...m.cvReview, full } } : m)) }));
@@ -1018,6 +1028,12 @@ export default function ChatApp() {
               <>
                 <header className="canvas-head">
                   <strong>{canvasTitle(canvasMsg, questionFor(canvasMsg))}</strong>
+                  {canvasMsg.cvReview?.review && (
+                    <span className="canvas-tabs" role="tablist">
+                      <button role="tab" aria-selected={canvasTab === 'editor'} className={canvasTab === 'editor' ? 'is-on' : ''} onClick={() => setCanvasTab('editor')}>Editor</button>
+                      <button role="tab" aria-selected={canvasTab === 'review'} className={canvasTab === 'review' ? 'is-on' : ''} onClick={() => setCanvasTab('review')}>Revisão</button>
+                    </span>
+                  )}
                   {canvasItems.length > 1 && (
                     <span className="canvas-nav">
                       <button className="icon-btn" disabled={canvasIndex <= 0} onClick={() => setCanvasPick(canvasItems[canvasIndex - 1].id)} aria-label="Resposta anterior"><ChevronLeft size={17} /></button>
@@ -1026,8 +1042,22 @@ export default function ChatApp() {
                     </span>
                   )}
                 </header>
-                <div className="canvas-body" ref={canvasRef}><div className="canvas-page" key={canvasMsg.id}>{assistantBody(canvasMsg, canvasMsg.id === messages.at(-1)?.id)}</div></div>
-                <ScrollRail target={canvasRef} />
+                {/* numa revisão de CV: o editor, com a revisão carregada por baixo (é ela que pede o CV corrigido) */}
+                {canvasMsg.cvReview?.review && canvasTab === 'editor' && active && (editTarget.current = { conversation: active.id, message: canvasMsg.id }) && (
+                  <div className="canvas-body is-editor">
+                    <CvEditor
+                      key={canvasMsg.id}
+                      full={canvasMsg.cvReview.full}
+                      review={canvasMsg.cvReview.review}
+                      target={canvasMsg.cvReview.target}
+                      cvName={canvasMsg.cvReview.cvName}
+                      edited={canvasMsg.cvReview.edit}
+                      onSave={onEditSave}
+                    />
+                  </div>
+                )}
+                <div className={`canvas-body${canvasMsg.cvReview?.review && canvasTab === 'editor' ? ' canvas-hidden' : ''}`} ref={canvasRef}><div className="canvas-page" key={canvasMsg.id}>{assistantBody(canvasMsg, canvasMsg.id === messages.at(-1)?.id)}</div></div>
+                {!(canvasMsg.cvReview?.review && canvasTab === 'editor') && <ScrollRail target={canvasRef} />}
               </>
             ) : (
               <div className="canvas-empty">
