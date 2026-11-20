@@ -398,17 +398,17 @@ export default function CvEditor({ full, original, failed, review, target, cvNam
       const { toCanvas } = await import('html-to-image');
       const scale = 2.5;
       const canvas = await toCanvas(page, { pixelRatio: scale, backgroundColor: '#ffffff', cacheBust: true, filter: (n) => !(n instanceof HTMLElement && (n.classList.contains('cve-leo') || n.classList.contains('cvp-break') || n.classList.contains('cvp-photo-bar'))) });
-      // páginas A4: cortes de 1123 px (com a escala), cada um em JPEG
-      const pageH = Math.round(PAGE_H * scale);
-      const pages: string[] = [];
-      for (let y = 0; y < canvas.height - 4; y += pageH) {
-        const c = document.createElement('canvas');
-        c.width = canvas.width; c.height = pageH;
-        const x = c.getContext('2d')!;
-        x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
-        x.drawImage(canvas, 0, y, canvas.width, Math.min(pageH, canvas.height - y), 0, 0, canvas.width, Math.min(pageH, canvas.height - y));
-        pages.push(c.toDataURL('image/jpeg', 0.95));
-      }
+      // uma só página A4, igual à folha do editor: se o CV passar um pouco do A4, encolhe para caber inteiro
+      const pageW = Math.round(PAGE_W * scale), pageH = Math.round(PAGE_H * scale);
+      const k = Math.min(1, pageH / canvas.height);
+      const c = document.createElement('canvas');
+      c.width = pageW; c.height = pageH;
+      const x = c.getContext('2d')!;
+      x.fillStyle = '#fff'; x.fillRect(0, 0, pageW, pageH);
+      x.imageSmoothingQuality = 'high';
+      const w = canvas.width * k, h = canvas.height * k;
+      x.drawImage(canvas, (pageW - w) / 2, 0, w, h);
+      const pages = [c.toDataURL('image/jpeg', 0.95)];
       const m = await import('@/lib/pdf-export.js');
       m.savePdf(await m.imagesPdf(pages), `${cv?.name || cvName.replace(/\.[a-z0-9]+$/i, '') || 'CV'} - CV`);
     } catch (err) {
