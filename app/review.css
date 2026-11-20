@@ -1763,3 +1763,7 @@ button:active:not(:disabled) { transform: scale(.97); }
   .cve-export span { display: none; }
   .cve-export { padding: 0 10px; }
 }
+/* durante o download: sem contornos de edição */
+.cvp.is-printing .cvp-e, .cvp.is-printing .cvp-photo { box-shadow: none !important; background: transparent; }
+.cvp.is-printing .cvp-e.is-empty::before { content: none; }
+.cvp.is-printing { box-shadow: none !important; }

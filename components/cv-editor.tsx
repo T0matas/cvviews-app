@@ -383,19 +383,44 @@ export default function CvEditor({ full, original, failed, review, target, cvNam
     }
   };
 
-  const exportPdf = () => {
+  // Download: a folha desenhada a 100%, em alta resolução, cortada em páginas A4 e guardada logo como PDF
+  const [downloading, setDownloading] = useState(false);
+  const exportPdf = async () => {
     const page = pageRef.current;
-    if (!page) return;
-    const frame = document.createElement('iframe');
-    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
-    document.body.appendChild(frame);
-    const doc = frame.contentDocument!;
-    const styles = [...document.querySelectorAll('style, link[rel="stylesheet"]')].map((n) => n.outerHTML).join('');
-    doc.open();
-    doc.write(`<!doctype html><html><head><meta charset="utf-8"><title>${(cv?.name || cvName || 'CV').replace(/[<>]/g, '')} - CV</title>${styles}<style>@page{size:A4;margin:0}html,body{margin:0;background:#fff}.cvp{box-shadow:none!important;zoom:1!important;min-height:auto}.cve-leo,.cvp-break{display:none!important}[contenteditable]{outline:none!important}</style></head><body>${page.outerHTML}</body></html>`);
-    doc.close();
-    setTimeout(() => { frame.contentWindow?.focus(); frame.contentWindow?.print(); setTimeout(() => frame.remove(), 2000); }, 400);
+    if (!page || downloading) return;
+    setDownloading(true);
+    const prev = { zoom: page.style.zoom, sel: selected };
+    setSelected(null);
+    page.classList.add('is-printing');
+    page.style.zoom = '1';
+    try {
+      await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+      const { toCanvas } = await import('html-to-image');
+      const scale = 2.5;
+      const canvas = await toCanvas(page, { pixelRatio: scale, backgroundColor: '#ffffff', cacheBust: true, filter: (n) => !(n instanceof HTMLElement && (n.classList.contains('cve-leo') || n.classList.contains('cvp-break') || n.classList.contains('cvp-photo-bar'))) });
+      // páginas A4: cortes de 1123 px (com a escala), cada um em JPEG
+      const pageH = Math.round(PAGE_H * scale);
+      const pages: string[] = [];
+      for (let y = 0; y < canvas.height - 4; y += pageH) {
+        const c = document.createElement('canvas');
+        c.width = canvas.width; c.height = pageH;
+        const x = c.getContext('2d')!;
+        x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+        x.drawImage(canvas, 0, y, canvas.width, Math.min(pageH, canvas.height - y), 0, 0, canvas.width, Math.min(pageH, canvas.height - y));
+        pages.push(c.toDataURL('image/jpeg', 0.95));
+      }
+      const m = await import('@/lib/pdf-export.js');
+      m.savePdf(await m.imagesPdf(pages), `${cv?.name || cvName.replace(/\.[a-z0-9]+$/i, '') || 'CV'} - CV`);
+    } catch (err) {
+      console.warn('[download]', err);
+      setError('Não foi possível criar o PDF agora.');
+    } finally {
+      page.style.zoom = prev.zoom;
+      page.classList.remove('is-printing');
+      setDownloading(false);
+    }
   };
+
 
   // um texto editável da folha
   const E = ({ path, as: Tag = 'span', className = '', k }: { path: string; as?: 'span' | 'div' | 'h1' | 'h2' | 'h3' | 'li' | 'p'; className?: string; k?: number }) => {
@@ -588,7 +613,7 @@ export default function CvEditor({ full, original, failed, review, target, cvNam
         <span className={`cve-status${playing ? ' is-live' : ''}`}>
           {playing ? <><i />O Leo está a editar</> : !cv ? <><Loader2 size={13} className="spin" />A ler o CV</> : fromOriginal.current ? <><Loader2 size={13} className="spin" />O Leo está a rever</> : gaveUp && !full ? 'Sem correções por agora' : saved ? 'Guardado' : 'A guardar…'}
         </span>
-        <button className="cve-export" onClick={exportPdf} disabled={!cv || playing}><Download size={15} /><span>Exportar PDF</span></button>
+        <button className="cve-export" onClick={exportPdf} disabled={!cv || playing || downloading}>{downloading ? <Loader2 size={15} className="spin" /> : <Download size={15} />}<span>Download</span></button>
         {overlay && <button className="cve-close" onClick={onClose} aria-label="Fechar o editor"><X size={18} /></button>}
       </div>
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { void pickPhoto(e.target.files?.[0]); e.target.value = ''; }} />
