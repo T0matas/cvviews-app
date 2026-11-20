@@ -14,15 +14,21 @@ export default function ScrollRail({ target, inset = 6 }: { target: RefObject<HT
   useEffect(() => {
     const el = target.current;
     if (!el) return;
-    const measure = () => {
+    // Várias mudanças no mesmo fotograma (uma resposta a chegar mexe no texto dezenas de vezes) dão uma só medição,
+    // e só se volta a desenhar se a barra mudou mesmo: em aparelhos fracos isto pesava durante as respostas.
+    let pending = 0;
+    const read = () => {
+      pending = 0;
       const r = el.getBoundingClientRect();
       const { scrollHeight, clientHeight, scrollTop } = el;
-      if (scrollHeight <= clientHeight + 2 || r.height < 40) return setBox(null);
+      if (scrollHeight <= clientHeight + 2 || r.height < 40) return setBox((b) => (b === null ? b : null));
       const track = r.height - inset * 2;
       const thumb = Math.max(36, (clientHeight / scrollHeight) * track);
       const y = (scrollTop / (scrollHeight - clientHeight)) * (track - thumb);
-      setBox({ top: r.top + inset, left: r.right - 7, height: track, thumb, y });
+      const next = { top: r.top + inset, left: r.right - 7, height: track, thumb, y };
+      setBox((b) => (b && Math.abs(b.top - next.top) < .5 && Math.abs(b.left - next.left) < .5 && Math.abs(b.height - next.height) < .5 && Math.abs(b.thumb - next.thumb) < .5 && Math.abs(b.y - next.y) < .5 ? b : next));
     };
+    const measure = () => { if (!pending) pending = requestAnimationFrame(read); };
     const onScroll = () => {
       measure();
       setActive(true);
@@ -37,13 +43,14 @@ export default function ScrollRail({ target, inset = 6 }: { target: RefObject<HT
     // o conteúdo cresce (uma resposta a chegar) sem mudar o tamanho da caixa
     const content = new MutationObserver(measure);
     content.observe(el, { childList: true, subtree: true, characterData: true });
-    const tick = setInterval(measure, 1200);   // a grelha mexe-se com animações: volta a medir de vez em quando
+    const tick = setInterval(measure, 2000);   // a grelha mexe-se com animações: volta a medir de vez em quando
     return () => {
       el.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', measure);
       sizes.disconnect();
       content.disconnect();
       clearInterval(tick);
+      cancelAnimationFrame(pending);
       if (idle.current) clearTimeout(idle.current);
     };
   }, [target, inset]);

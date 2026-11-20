@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Markdown from './markdown';
+import { isLite } from '@/lib/perf';
 
 // O texto aparece a ritmo constante, palavra a palavra, mesmo quando a Groq o manda aos bocados grandes
 // (uma resposta curta chega muitas vezes num só bocado, e sem isto aparecia toda de uma vez).
@@ -25,6 +26,9 @@ export default function SmoothProse({ text, streaming }: { text: string; streami
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return setShown(text.length);
     let frame = 0;
     let last = performance.now();
+    let painted = 0;
+    // refazer o Markdown custa: no máximo ~30 vezes por segundo (12 em aparelhos fracos)
+    const every = isLite() ? 80 : 33;
     const tick = (now: number) => {
       const dt = Math.min(50, now - last);
       last = now;
@@ -39,8 +43,8 @@ export default function SmoothProse({ text, streaming }: { text: string; streami
           const start = full.lastIndexOf(' ', next);
           next = Math.max(0, start);
         }
-        setShown((current) => (next > current ? next : current));
         if (progress.current >= full.length) setShown(full.length);
+        else if (now - painted >= every) { painted = now; setShown((current) => (next > current ? next : current)); }
       }
       frame = requestAnimationFrame(tick);
     };

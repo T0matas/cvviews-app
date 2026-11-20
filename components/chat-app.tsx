@@ -22,6 +22,7 @@ import ReviewView, { type CvSource } from './review-view';
 import { readImage, readOriginal, readPdf, readWord, toBase64 } from '@/lib/read-file';
 import { enhanceImage, needsEnhance } from '@/lib/enhance';
 import { autoFocus } from '@/lib/focus';
+import { watchFrameRate } from '@/lib/perf';
 import { isCvReview, looksLikeCv } from '@/lib/cv-detect';
 import { type FullCv, type Review, reviewSummary } from '@/lib/review';
 import { useRecorder } from '@/lib/use-recorder';
@@ -287,10 +288,26 @@ export default function ChatApp() {
       .catch(() => {});
   }, [settings.memory, changeMemory]);
 
+  // Guardar no navegador: com uma pequena pausa e nunca a meio de uma resposta (gravar todas as conversas, com as
+  // imagens dos CVs, a cada fotograma pesava muito em aparelhos fracos). Ao sair da página guarda-se logo.
+  const latest = useRef({ conversations, key: storageKey(user?.uid) });
+  latest.current = { conversations, key: storageKey(user?.uid) };
+  useEffect(() => {
+    if (!hydrated || streamingId) return;
+    const t = setTimeout(() => {
+      try { localStorage.setItem(storageKey(user?.uid), JSON.stringify(conversations)); } catch { /* cheio ou bloqueado */ }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [conversations, hydrated, user?.uid, streamingId]);
   useEffect(() => {
     if (!hydrated) return;
-    try { localStorage.setItem(storageKey(user?.uid), JSON.stringify(conversations)); } catch { /* cheio ou bloqueado */ }
-  }, [conversations, hydrated, user?.uid]);
+    const flush = () => { try { localStorage.setItem(latest.current.key, JSON.stringify(latest.current.conversations)); } catch { /* cheio ou bloqueado */ } };
+    const onHide = () => { if (document.visibilityState === 'hidden') flush(); };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onHide);
+    return () => { window.removeEventListener('pagehide', flush); document.removeEventListener('visibilitychange', onHide); };
+  }, [hydrated]);
+  useEffect(() => watchFrameRate(), []);
 
   // O tema: o do sistema, ou claro/escuro fixo.
   useEffect(() => {

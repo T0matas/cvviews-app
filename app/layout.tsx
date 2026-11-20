@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './extras.css';
 import './review.css';
+import { LITE_BOOT } from '@/lib/perf-boot';
 
 const SITE = 'https://cvviews.me';
 const DESCRIPTION = 'CVviews: revisão de CV com inteligência artificial. O Leo, o assistente do CVviews, corrige o teu currículo, dá-lhe uma nota, prepara entrevistas e ajuda recrutadores a analisar candidaturas.';
@@ -50,6 +51,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         {/* O tema escolhido nas Configurações, aplicado antes de pintar a página (sem piscar). */}
         <script dangerouslySetInnerHTML={{ __html: "try{var t=JSON.parse(localStorage.getItem('cvviews-settings')||'{}').theme;if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}" }} />
+        {/* Modo leve em aparelhos fracos, também antes de pintar (lib/perf.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: LITE_BOOT }} />
       </head>
       <body>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />

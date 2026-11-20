@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { isLite } from '@/lib/perf';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { Mail } from 'lucide-react';
 import { auth, messageFor, QUIET } from '@/lib/firebase';
@@ -61,7 +62,9 @@ function Dashes() {
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
     const CLOUD_TILT = -0.32; // a nuvem solta
     const TILT = -0.1; // a folha formada, só um pouco inclinada
-    const COUNT = 380;
+    // aparelhos fracos: menos traços, sem alta resolução e a 30 fotogramas por segundo
+    const lite = isLite();
+    const COUNT = lite ? 190 : 380;
 
     // A folha de CV, em coordenadas da página (largura 1, altura 1.3, centro em 0,0): o contorno tracejado,
     // a foto, o nome e o cargo, uma coluna lateral com competências e a coluna principal com secções e marcadores.
@@ -150,8 +153,11 @@ function Dashes() {
     canvas.addEventListener('pointerup', leave);
 
     let frame = 0;
+    let lastDraw = 0;
     const draw = (t: number) => {
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      if (lite && !still && t - lastDraw < 30) { frame = requestAnimationFrame(draw); return; }
+      lastDraw = t;
+      const dpr = Math.min(lite ? 1 : 2, window.devicePixelRatio || 1);
       const w = canvas.clientWidth, h = canvas.clientHeight;
       if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
         canvas.width = Math.round(w * dpr);

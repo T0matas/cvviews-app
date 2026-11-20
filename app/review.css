@@ -1390,3 +1390,34 @@ button:active:not(:disabled) { transform: scale(.97); }
   }
 }
 @media (prefers-reduced-motion: reduce) { .dialogs .dialog, .dialogs .dialog-backdrop { animation: none !important; } }
+
+/* ================= Desempenho ================= */
+/* Para todos: numa conversa longa, as mensagens antigas fora do ecrã não se desenham (as últimas ficam sempre). */
+.messages > .msg:not(:nth-last-child(-n+4)) { content-visibility: auto; contain-intrinsic-size: auto 240px; }
+
+/* Modo leve (aparelhos fracos, ver lib/perf.ts): os efeitos mais caros saem, o aspeto fica igual. */
+:root[data-lite="1"] *, :root[data-lite="1"] *::before, :root[data-lite="1"] *::after {
+  -webkit-backdrop-filter: none !important; backdrop-filter: none !important; will-change: auto !important;
+}
+:root[data-lite="1"] .dialog-backdrop { background: rgb(0 0 0 / .62); }
+/* palavras: só opacidade (o desfoque por palavra é o mais pesado de tudo) */
+:root[data-lite="1"] .prose .w { animation: word-in-lite .35s ease-out both; }
+@keyframes word-in-lite { from { opacity: 0; } }
+:root[data-lite="1"] .prose.is-revealing > * { animation: block-in-lite .3s ease-out both; }
+@keyframes block-in-lite { from { opacity: 0; } }
+/* nada em ciclo contínuo */
+:root[data-lite="1"] .hello-mark { animation: mark-write 1s cubic-bezier(.45, .05, .25, 1) .1s both; }
+:root[data-lite="1"] .leo-label { animation: none; color: var(--ink-3); background: none; }
+:root[data-lite="1"] .rv-skeleton i { animation: none; }
+/* janelas: sobem e desvanecem (o Genie anima o recorte, que o processador desenha fotograma a fotograma) */
+:root[data-lite="1"] .dialogs .dialog { clip-path: none; animation: lite-in .26s cubic-bezier(.2, .8, .2, 1) both !important; }
+:root[data-lite="1"] .dialogs.is-closing .dialog { animation: lite-out .22s ease-in forwards !important; }
+:root[data-lite="1"] .dialogs .dialog-backdrop, :root[data-lite="1"] .dialogs.is-closing .dialog-backdrop { animation: fade .2s ease both !important; }
+:root[data-lite="1"] .dialogs.is-closing .dialog-backdrop { animation: fade-out .22s ease forwards !important; }
+@keyframes lite-in { from { opacity: 0; transform: translateY(16px); } }
+@keyframes lite-out { to { opacity: 0; transform: translateY(16px); } }
+/* boas-vindas e transições de ecrã sem desfoque */
+:root[data-lite="1"] .onboard.is-leaving .onboard-art { animation: fade-out .4s ease forwards; }
+:root[data-lite="1"] .main.is-entering::before, :root[data-lite="1"] .app.is-arriving .main::before { animation-duration: .5s !important; }
+/* sombras grandes e difusas custam a pintar; ficam mais simples */
+:root[data-lite="1"] .dialog, :root[data-lite="1"] .menu, :root[data-lite="1"] .welcome .composer { box-shadow: 0 8px 24px -12px rgb(0 0 0 / .5) !important; }
