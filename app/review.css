@@ -1195,3 +1195,56 @@ button:active:not(:disabled) { transform: scale(.97); }
   .topbar-account .topbar-signin { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; font-weight: 500; -webkit-appearance: none; appearance: none; }
   .topbar-account .topbar-signin:active { transform: scale(.96); }
 }
+
+/* ================= Telemóvel: janelas e boas-vindas no tema verde ================= */
+@media (max-width: 820px) {
+  /* as folhas (Candidaturas, Entrar, Configurações) ganham o brilho verde do ecrã inicial, no topo */
+  .dialog-backdrop { background: rgb(0 0 0 / .55); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+  .dialog {
+    border: 1px solid color-mix(in srgb, var(--hero-1) 30%, transparent); border-bottom: 0;
+    background:
+      radial-gradient(120% 55% at 50% 0%, color-mix(in srgb, var(--hero-2) 34%, transparent), transparent 72%),
+      var(--card);
+    box-shadow: 0 -24px 60px -20px color-mix(in srgb, var(--hero-3) 55%, transparent);
+  }
+  .dialog::before { background: rgb(255 255 255 / .28); }
+  /* títulos como o "Bom dia" do ecrã inicial */
+  .dialog h2, .apps-head h2 { font-family: var(--sans); font-size: 25px; font-weight: 600; letter-spacing: -.6px; }
+  .dialog-close { width: 34px; height: 34px; border-radius: 50%; background: rgb(127 127 127 / .14); }
+  /* campos translúcidos, com o verde ao escrever */
+  .dialog input:not([type="checkbox"]):not([type="radio"]), .dialog textarea {
+    border: 1px solid var(--card-line); background: rgb(0 0 0 / .16);
+  }
+  .dialog input:not([type="checkbox"]):not([type="radio"]):focus, .dialog textarea:focus {
+    border-color: var(--accent-1); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-1) 22%, transparent); outline: 0;
+  }
+  /* separadores das Configurações: o ativo em verde suave */
+  .settings-tabs button[aria-selected="true"], .settings-tabs .is-active, .settings-tabs .is-on {
+    color: var(--ink); background: color-mix(in srgb, var(--accent-1) 18%, transparent);
+  }
+  .settings-tabs button[aria-selected="true"] svg, .settings-tabs .is-active svg, .settings-tabs .is-on svg { color: var(--accent-1); }
+
+  /* boas-vindas: o mesmo degradê verde do ecrã inicial, em vez de preto */
+  .onboard {
+    background:
+      radial-gradient(70% 40% at 20% 6%, rgb(255 255 255 / .16), transparent 70%),
+      linear-gradient(180deg, var(--hero-1) 0%, var(--hero-2) 28%, var(--hero-3) 48%, #04120f 78%, #000 100%);
+  }
+  .onboard-copy p { color: rgb(255 255 255 / .7); }
+  .onboard-btn:not(.is-light) { background: rgb(255 255 255 / .12); box-shadow: inset 0 0 0 1px rgb(255 255 255 / .14); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+  .onboard-legal { color: rgb(255 255 255 / .45); }
+}
+/* tema claro: o brilho verde mais leve, para não sujar o branco */
+@media (max-width: 820px) {
+  :root[data-theme="light"] .dialog { background: radial-gradient(120% 50% at 50% 0%, color-mix(in srgb, var(--hero-1) 16%, transparent), transparent 72%), var(--card); box-shadow: 0 -20px 50px -24px rgb(0 0 0 / .25); }
+  :root[data-theme="light"] .dialog::before { background: rgb(0 0 0 / .18); }
+  :root[data-theme="light"] .dialog input:not([type="checkbox"]):not([type="radio"]), :root[data-theme="light"] .dialog textarea { background: rgb(0 0 0 / .03); }
+}
+@media (max-width: 820px) and (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .dialog { background: radial-gradient(120% 50% at 50% 0%, color-mix(in srgb, var(--hero-1) 16%, transparent), transparent 72%), var(--card); box-shadow: 0 -20px 50px -24px rgb(0 0 0 / .25); }
+  :root:not([data-theme="dark"]) .dialog::before { background: rgb(0 0 0 / .18); }
+  :root:not([data-theme="dark"]) .dialog input:not([type="checkbox"]):not([type="radio"]), :root:not([data-theme="dark"]) .dialog textarea { background: rgb(0 0 0 / .03); }
+}
+@media (max-width: 820px) {
+  .dialog .icon-btn[aria-label="Fechar"] { width: 34px; height: 34px; border-radius: 50%; background: rgb(127 127 127 / .14); }
+}
