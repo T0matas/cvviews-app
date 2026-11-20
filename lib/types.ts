@@ -1,5 +1,7 @@
 import type { FullCv, Review } from './review';
 import type { CvEdit } from '@/components/cv-editor';
+import type { OriginalLook } from '@/components/review-view';
+import type { CvLayoutInfo } from '@/app/api/layout/route';
 
 export type Role = 'user' | 'assistant';
 
@@ -21,7 +23,7 @@ export type Message = {
   /** A avaliação de quem leu a resposta (👍/👎). */
   feedback?: 'up' | 'down';
   /** Presente quando a resposta é a revisão de um CV anexado (como no site). */
-  cvReview?: { cvText: string; cvName: string; target: string; review?: Review; full?: FullCv; error?: string; /** O CV como ficou no editor (texto e desenho). */ edit?: CvEdit };
+  cvReview?: { cvText: string; cvName: string; target: string; review?: Review; full?: FullCv; /** O CV original na estrutura (chega antes da revisão). */ original?: FullCv; error?: string; /** O CV como ficou no editor (texto e desenho). */ edit?: CvEdit; /** O desenho do original (cores, colunas, foto). */ look?: OriginalLook; /** A estrutura do original lida pelo modelo de visão. */ layout?: CvLayoutInfo };
 };
 
 export type Conversation = {

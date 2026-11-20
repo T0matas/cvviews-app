@@ -44,7 +44,7 @@ export async function imageToText(dataUrl: string, signal?: AbortSignal) {
       role: 'user',
       content: [
         { type: 'text', text: `Read this image for an assistant that will answer questions about it.
-- If it is mainly a document (a CV, a worksheet, a page, a form, a letter): transcribe all its text exactly as written, once, keeping the line breaks and section order. Leave out text outside the page (captions, labels or watermarks around it). Output only the text.
+- If it is mainly a document (a CV, a worksheet, a page, a form, a letter): transcribe all its text exactly as written, once, keeping the line breaks and section order. Leave out text outside the page (captions, labels or watermarks around it). Output only the text: never describe the image, the layout, the photo or the sections. A CV with a photo of the person, colours or icons is still a document.
 - If it is anything else (a photo, a chart, a diagram, a drawing, a screenshot of an app or website, an object, a person, a place): first transcribe any readable text (if there is some), then write a line "Descrição da imagem:" followed by a detailed, factual description in European Portuguese: what it shows, the people or objects and what they are doing, every number, label and value in charts or tables, colours, layout and anything notable. Do not guess identities of real people.` },
         { type: 'image_url', image_url: { url: dataUrl } },
       ],
@@ -52,7 +52,19 @@ export async function imageToText(dataUrl: string, signal?: AbortSignal) {
   }, signal);
   const data = (await response.json()) as { choices?: { message?: { content?: string } }[] };
   const text = String(data.choices?.[0]?.message?.content || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();
-  return text === 'NO_TEXT' ? '' : cleanTranscript(text);   // (o pedido já não usa NO_TEXT, mas um modelo antigo pode responder assim)
+  return text === 'NO_TEXT' ? '' : cleanTranscript(stripDescription(text));   // (o pedido já não usa NO_TEXT, mas um modelo antigo pode responder assim)
+}
+
+// Num documento (um CV, sobretudo), a descrição da imagem não é texto do documento: sai, com as frases soltas
+// que a descrevem ("A imagem inclui…", "A secção PROFILE contém…"). Antes, isto acabava como linhas do CV corrigido.
+const DESCRIBES = /^(?:[-•*]\s*)?(?:a imagem|esta imagem|na imagem|a fotografia|o documento|este documento|a sec[çc][ãa]o\s+["“'A-Z]|a se[çc][ãa]o\s+["“']|o cv (?:apresenta|cont[ée]m|inclui|mostra)|the image|this image|the document)/i;
+const DOC_WORDS = /experi[êe]ncia|experience|forma[çc][ãa]o|education|compet[êe]ncias|skills|perfil|profile|contact|contacto|curriculum|l[íi]nguas|languages/gi;
+export function stripDescription(text: string) {
+  const at = text.search(/^\s*\**descri[çc][ãa]o da imagem\**\s*:/im);
+  const before = at >= 0 ? text.slice(0, at) : text;
+  const isDoc = (before.match(DOC_WORDS)?.length ?? 0) >= 3;
+  if (!isDoc) return text;
+  return before.split('\n').filter((line) => !DESCRIBES.test(line.trim())).join('\n').trim();
 }
 
 // O modelo de visão às vezes fica preso: transcreve a página toda uma segunda vez e depois repete a mesma linha

@@ -6,13 +6,66 @@
 // escrever), e cada linha pode ser melhorada pelo Leo. As alterações ficam guardadas na conversa.
 import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Download, Hand, Loader2, Maximize2, Minimize2, Minus, MousePointer2, Plus, Redo2, Sparkles, Trash2, Undo2, Wand2,
+  Download, Hand, ImagePlus, Loader2, Maximize2, Minimize2, Minus, MousePointer2, Palette, Plus, Redo2, Sparkles, Trash2, Undo2, Wand2, X,
 } from 'lucide-react';
 import type { FullCv, Review } from '@/lib/review';
+import { tidyCv } from '@/lib/cv-tidy';
+import type { CvSource, OriginalLook } from './review-view';
+import type { CvLayoutInfo } from '@/app/api/layout/route';
 
-export type CvDesign = { template: 'moderno' | 'classico' | 'minimal'; accent: string; font: 'sans' | 'serif'; size: number; spacing: number };
+export type CvDesign = {
+  template: 'original' | 'moderno' | 'classico' | 'minimal'; accent: string; font: 'sans' | 'serif'; size: number; spacing: number;
+  /** a fotografia: undefined = a do original; null = sem foto; texto = uma imagem posta pela pessoa */
+  photo?: string | null; photoRound?: boolean; sideBg?: string | null;
+  /** onde a pessoa arrastou a foto (px na folha, a partir do sítio normal) */
+  photoPos?: { x: number; y: number };
+};
 export type CvEdit = { cv: FullCv; design: CvDesign };
 const DEFAULT_DESIGN: CvDesign = { template: 'moderno', accent: '#1f8a71', font: 'sans', size: 1, spacing: 1 };
+// frases que descrevem a imagem (de leituras antigas) não são linhas do CV
+const DESCRIBES = /^(?:a imagem|esta imagem|na imagem|a fotografia|o documento|este documento|a sec[çc][ãa]o\s+["“'A-Z]|o cv (?:apresenta|cont[ée]m|inclui|mostra)|the image|this image)/i;
+const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+// As secções pela ordem em que estavam no CV original (o CV corrigido pode vir reordenado).
+function cleanCv(cv: FullCv, original = ''): FullCv {
+  const t = tidyCv(cv);
+  const text = norm(original);
+  const at = (title: string) => { const i = title ? text.indexOf(norm(title)) : -1; return i < 0 ? Infinity : i; };
+  const sections = t.sections
+    .map((s, i) => ({ s, i, pos: at(s.title) }))
+    .sort((a, b) => (a.pos === b.pos ? a.i - b.i : a.pos - b.pos))
+    .map(({ s }) => ({ ...s, entries: s.entries.map((e) => ({ ...e, lines: e.lines.filter((l) => !DESCRIBES.test(l)) })) }));
+  return { ...t, contact: t.contact.filter((c) => !DESCRIBES.test(c) && c.length < 90), sections };
+}
+// O título "Contacto" na língua do CV.
+function contactWord(cv: FullCv) {
+  const titles = cv.sections.map((s) => norm(s.title)).join(' ');
+  if (/\b(experience|education|skills|profile|languages|summary|work)\b/.test(titles)) return 'Contact';
+  if (/\b(experiencia|educacion|habilidades|idiomas)\b/.test(titles)) return 'Contacto';
+  if (/\b(experience professionnelle|formation|competences|langues)\b/.test(titles)) return 'Contact';
+  if (/\b(berufserfahrung|ausbildung|kenntnisse|sprachen)\b/.test(titles)) return 'Kontakt';
+  return 'Contacto';
+}
+// uma página do CV, reduzida, para o modelo de visão ler a estrutura
+async function shrinkSrc(src: string, max: number) {
+  const img = await new Promise<HTMLImageElement>((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = src; });
+  const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+  const c = document.createElement('canvas');
+  c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+  const x = c.getContext('2d')!; x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL('image/jpeg', 0.9);
+}
+// uma imagem posta pela pessoa, reduzida para caber na conversa
+async function shrinkImage(file: File) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = bad; i.src = url; });
+    const s = Math.min(1, 520 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas');
+    c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
+    const x = c.getContext('2d')!; x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', 0.9);
+  } finally { URL.revokeObjectURL(url); }
+}
 const ACCENTS = ['#1f8a71', '#2f63e2', '#7a4de0', '#d6463b', '#c77d12', '#1d1d1f'];
 const PAGE_W = 794, PAGE_H = 1123; // A4 a 96 ppp
 
@@ -70,6 +123,7 @@ const isLine = (path: string | null) => Boolean(path && /^s\.\d+\.e\.\d+\.l\.\d+
 const KIND: Record<string, string> = { name: 'Nome', headline: 'Cargo', c: 'Contacto', t: 'Título de secção', st: 'Empresa ou escola', d: 'Datas', l: 'Linha', et: 'Título' };
 const kindOf = (path: string) => {
   const p = path.split('.');
+  if (path === 'photo') return 'Fotografia';
   if (p[0] === 'name' || p[0] === 'headline' || p[0] === 'c') return KIND[p[0]];
   if (p[2] === 't') return KIND.t;
   if (p[4] === 't') return KIND.et;
@@ -103,11 +157,91 @@ function plan(cv: Cv, review?: Review) {
 const SIDE = /compet|skill|l[ií]ngua|idioma|lang|ferrament|tool|interes|certif|conhec|software|soft/i;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export default function CvEditor({ full, review, target, cvName, edited, onSave }: {
-  full?: FullCv | null; review?: Review; target?: string; cvName: string; edited?: CvEdit; onSave: (edit: CvEdit) => void;
+export default function CvEditor({ full, original, failed, review, target, cvName, cvText = '', edited, look, layoutInfo, source, onLayout, onSave, overlay = false, onClose }: {
+  full?: FullCv | null; original?: FullCv; failed?: string; review?: Review; target?: string; cvName: string; cvText?: string; edited?: CvEdit; look?: OriginalLook;
+  layoutInfo?: CvLayoutInfo; source?: CvSource; onLayout?: (layout: CvLayoutInfo) => void;
+  onSave: (edit: CvEdit) => void; overlay?: boolean; onClose?: () => void;
 }) {
-  const [cv, setCv] = useState<Cv | null>(edited?.cv ?? full ?? null);
-  const [design, setDesign] = useState<CvDesign>(edited?.design ?? DEFAULT_DESIGN);
+  // primeiro o CV original (chega cedo), depois o corrigido; uma edição guardada vem antes de tudo
+  const [cv, setCv] = useState<Cv | null>(edited?.cv ?? (full ? cleanCv(full, cvText) : original ? cleanCv(original, cvText) : null));
+  const fromOriginal = useRef(!edited && !full && Boolean(original));
+  // se a revisão falhar (ou demorar demasiado), deixa de esperar: o CV original fica para editar à mão
+  const [gaveUp, setGaveUp] = useState(false);
+  useEffect(() => {
+    if (full || !cv || !fromOriginal.current) return;
+    if (failed) { fromOriginal.current = false; setGaveUp(true); return; }
+    const t = setTimeout(() => { if (fromOriginal.current) { fromOriginal.current = false; setGaveUp(true); } }, 90_000);
+    return () => clearTimeout(t);
+  }, [failed, full, cv]);
+  // em que coluna ficava cada secção no original, pelo título (a revisão dá-a pela ordem do CV corrigido)
+  const sideOf = useMemo(() => {
+    const map = new Map<string, 'side' | 'main'>();
+    if (look && full) tidyCv(full).sections.forEach((s, i) => { if (look.sections[i]) map.set(norm(s.title), look.sections[i]); });
+    return map;
+  }, [look, full]);
+  // a estrutura do original, lida pelo modelo de visão a partir da imagem (uma vez; fica guardada na conversa)
+  const [layout, setLayout] = useState<CvLayoutInfo | undefined>(layoutInfo);
+  const askedLayout = useRef(false);
+  useEffect(() => {
+    if (layout || askedLayout.current) return;
+    const first = source?.images?.[0];
+    if (!first) return;
+    askedLayout.current = true;
+    (async () => {
+      try {
+        const image = await shrinkSrc(first, 1500);
+        const res = await fetch('/api/layout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image }) });
+        const data = (await res.json()) as { layout?: CvLayoutInfo };
+        if (data.layout) { setLayout(data.layout); onLayout?.(data.layout); }
+      } catch { /* fica a deteção da revisão */ }
+    })();
+  }, [layout, source, onLayout]);
+
+  // o desenho do original, numa só forma: a estrutura lida pela visão e, para o que faltar, a da revisão
+  const shape = useMemo(() => {
+    if (!layout && !look) return null;
+    const ls = layout?.sections ?? [];
+    const find = (title: string) => { const n = norm(title); return ls.findIndex((x) => { const m = norm(x.title); return m === n || (m.length > 3 && (m.includes(n) || n.includes(m))); }); };
+    const side: 'left' | 'right' | 'none' = layout ? layout.sidebar : look?.two ? look.side : 'none';
+    return {
+      side,
+      ratio: Math.max(.26, Math.min(.44, layout?.sidebarWidth ?? look?.sideRatio ?? .33)),
+      sideBg: layout ? (layout.sidebar !== 'none' ? layout.sidebarColor : null) : look?.sideBg ?? null,
+      sideDark: layout ? layout.sidebarDark : Boolean(look?.sideDark),
+      accent: layout?.accent ?? look?.accent ?? '#1f8a71',
+      nameUpper: layout?.nameUpper ?? Boolean(look?.nameUpper),
+      nameCol: (layout?.nameColumn ?? (look?.header === 'side' ? 'side' : 'main')) as 'side' | 'main',
+      contactCol: (layout?.contactColumn ?? (look?.contact === 'side' ? 'side' : 'main')) as 'side' | 'main',
+      contactTitle: layout?.contactTitle ?? '',
+      photoCol: (layout ? (layout.photo === 'none' ? null : layout.photo) : look?.photo?.column ?? (look?.photo ? 'side' : null)) as 'side' | 'main' | null,
+      photoRound: layout ? layout.photoShape === 'round' : look?.photo?.round ?? true,
+      serif: Boolean(look?.serif),
+      info: (title: string, i: number) => {
+        const k = find(title);
+        if (k >= 0) return { col: side === 'none' ? 'main' as const : ls[k].column, style: ls[k].style as 'bullets' | 'paragraph' | 'timeline' | 'two-columns' | 'tags', rank: k };
+        const col = sideOf.get(norm(title)) ?? (SIDE.test(title) ? 'side' : 'main');
+        return { col: side === 'none' ? 'main' as const : col, style: undefined, rank: 100 + i };
+      },
+    };
+  }, [layout, look, sideOf]);
+
+  const designFromShape = (s: NonNullable<typeof shape>): CvDesign => ({
+    template: 'original', accent: s.accent, font: s.serif ? 'serif' : 'sans', size: 1, spacing: 1, photoRound: s.photoRound, sideBg: s.sideBg,
+  });
+  const [design, setDesignState] = useState<CvDesign>(edited?.design ?? (shape ? designFromShape(shape) : DEFAULT_DESIGN));
+  const touched = useRef(Boolean(edited));
+  const setDesign = (d: CvDesign) => { touched.current = true; setDesignState(d); };
+  const designRef = useRef(design);
+  designRef.current = design;
+  // o desenho do original chega depois (é lido da imagem): o editor passa a usá-lo, se a pessoa ainda não mexeu
+  useEffect(() => { if (shape && !touched.current) setDesignState(designFromShape(shape)); }, [shape]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
+  const dragStart = useRef<{ px: number; py: number; x: number; y: number; moved: boolean } | null>(null);
+  const dragNow = useRef<{ x: number; y: number } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const photo = design.photo === undefined ? (shape?.photoCol ? look?.photo?.src ?? null : null) : design.photo;
+  const pickPhoto = async (file?: File | null) => { if (!file) return; setDesign({ ...design, photo: await shrinkImage(file) }); };
   const [past, setPast] = useState<Cv[]>([]);
   const [future, setFuture] = useState<Cv[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -118,7 +252,7 @@ export default function CvEditor({ full, review, target, cvName, edited, onSave 
   const [zoom, setZoom] = useState(.7);
   const [fitted, setFitted] = useState(false);
   const [tool, setTool] = useState<'edit' | 'hand'>('edit');
-  const [big, setBig] = useState(false);
+  const [big, setBig] = useState(overlay);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(Boolean(edited));
   const pageRef = useRef<HTMLDivElement>(null);
@@ -126,7 +260,15 @@ export default function CvEditor({ full, review, target, cvName, edited, onSave 
   const played = useRef(Boolean(edited));
 
   // o CV corrigido chega depois da revisão
-  useEffect(() => { if (!cv && full) setCv(full); }, [full, cv]);
+  useEffect(() => {
+    if (!cv && full) { setCv(cleanCv(full, cvText)); return; }
+    if (!cv && original && !full) { setCv(cleanCv(original, cvText)); fromOriginal.current = true; return; }
+    // o CV corrigido chegou por cima do original: o Leo aplica as correções (se a pessoa ainda não mexeu)
+    if (cv && full && fromOriginal.current) {
+      fromOriginal.current = false;
+      if (!past.length) { played.current = false; setCv(cleanCv(full, cvText)); }
+    }
+  }, [full, original, cv, cvText, past.length]);
 
   // ajusta a folha à largura da tela
   const fit = useCallback(() => {
@@ -173,7 +315,7 @@ export default function CvEditor({ full, review, target, cvName, edited, onSave 
 
   // a primeira vez: o Leo edita o CV à frente da pessoa
   useEffect(() => {
-    if (!cv || played.current) return;
+    if (!cv || played.current || fromOriginal.current) return;
     played.current = true;
     const steps = plan(cv, review);
     if (!steps.length) return;
@@ -190,7 +332,7 @@ export default function CvEditor({ full, review, target, cvName, edited, onSave 
 
   // guardar na conversa (com uma pequena pausa)
   useEffect(() => {
-    if (!cv || playing || !played.current) return;
+    if (!cv || playing || !played.current || (fromOriginal.current && !past.length)) return;
     const t = setTimeout(() => { onSave({ cv, design }); setSaved(true); }, 700);
     setSaved(false);
     return () => clearTimeout(t);
@@ -294,43 +436,137 @@ export default function CvEditor({ full, review, target, cvName, edited, onSave 
   const page = useMemo(() => {
     if (!cv) return null;
     const sideIdx = design.template === 'moderno' ? cv.sections.map((s, i) => (SIDE.test(s.title) ? i : -1)).filter((i) => i >= 0) : [];
-    const section = (s: Cv['sections'][number], si: number, side = false): ReactNode => (
-      <section className="cvp-sec" key={si}>
-        {E({ path: `s.${si}.t`, as: 'h3', className: 'cvp-st' })}
-        {s.entries.map((e, ei) => (
-          <div className="cvp-entry" key={ei}>
-            {(e.title || e.dates || !side) && (e.title || e.subtitle || e.dates) ? (
-              <div className="cvp-row">
-                {E({ path: `s.${si}.e.${ei}.t`, className: 'cvp-et' })}
-                {e.dates ? E({ path: `s.${si}.e.${ei}.d`, className: 'cvp-d' }) : null}
+    type Style = 'bullets' | 'paragraph' | 'timeline' | 'two-columns' | 'tags';
+    const section = (s: Cv['sections'][number], si: number, side = false, style?: Style): ReactNode => {
+      // sem estilo dado: na coluna lateral, etiquetas (modelos da app); um texto corrido sem títulos é um parágrafo
+      const st: Style = style ?? (side ? 'tags' : s.entries.every((e) => !e.title && !e.dates && e.lines.length <= 2 && e.lines.join(' ').length > 90) ? 'paragraph' : 'bullets');
+      return (
+        <section className={`cvp-sec s-${st}`} key={si}>
+          {E({ path: `s.${si}.t`, as: 'h3', className: 'cvp-st' })}
+          <div className="cvp-entries">
+            {s.entries.map((e, ei) => (
+              <div className="cvp-entry" key={ei}>
+                {(e.title || e.dates) ? (
+                  <div className="cvp-row">
+                    {E({ path: `s.${si}.e.${ei}.t`, className: 'cvp-et' })}
+                    {e.dates ? E({ path: `s.${si}.e.${ei}.d`, className: 'cvp-d' }) : null}
+                  </div>
+                ) : null}
+                {e.subtitle ? E({ path: `s.${si}.e.${ei}.st`, as: 'div', className: 'cvp-sub' }) : null}
+                {e.lines.length > 0 && (st === 'tags'
+                  ? <div className="cvp-tags">{e.lines.map((_, li) => E({ path: `s.${si}.e.${ei}.l.${li}`, className: 'cvp-tag', k: li }))}</div>
+                  : st === 'paragraph'
+                    ? e.lines.map((_, li) => E({ path: `s.${si}.e.${ei}.l.${li}`, as: 'p', className: 'cvp-p', k: li }))
+                    : <ul>{e.lines.map((_, li) => E({ path: `s.${si}.e.${ei}.l.${li}`, as: 'li', k: li }))}</ul>)}
               </div>
-            ) : null}
-            {e.subtitle ? E({ path: `s.${si}.e.${ei}.st`, as: 'div', className: 'cvp-sub' }) : null}
-            {e.lines.length > 0 && (side
-              ? <div className="cvp-tags">{e.lines.map((_, li) => E({ path: `s.${si}.e.${ei}.l.${li}`, className: 'cvp-tag', k: li }))}</div>
-              : <ul>{e.lines.map((_, li) => E({ path: `s.${si}.e.${ei}.l.${li}`, as: 'li', k: li }))}</ul>)}
+            ))}
           </div>
-        ))}
-      </section>
-    );
-    const head = (
+        </section>
+      );
+    };
+    // a fotografia: clicar seleciona-a (no painel: trocar, remover, forma)
+    // arrasta-se para onde se quiser; um toque sem arrastar seleciona-a (com as opções por cima)
+    const pos = drag ?? design.photoPos ?? { x: 0, y: 0 };
+    const pic = photo ? (
+      <div className="cvp-photo-wrap" style={{ transform: `translate(${pos.x}px, ${pos.y}px)` }}>
+        <div
+          role="button"
+          tabIndex={0}
+          className={`cvp-photo${design.photoRound === false ? ' is-square' : ''}${selected === 'photo' ? ' is-sel' : ''}${drag ? ' is-dragging' : ''}`}
+          aria-label="Fotografia (arrasta para mover)"
+          onPointerDown={(e) => {
+            if (playing || tool !== 'edit') return;
+            e.preventDefault();
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+            const base = design.photoPos ?? { x: 0, y: 0 };
+            dragStart.current = { px: e.clientX, py: e.clientY, x: base.x, y: base.y, moved: false };
+            setSelected('photo');
+          }}
+          onPointerMove={(e) => {
+            const d = dragStart.current;
+            if (!d) return;
+            const dx = (e.clientX - d.px) / zoom, dy = (e.clientY - d.py) / zoom;
+            if (!d.moved && Math.hypot(dx, dy) < 3) return;
+            d.moved = true;
+            const next = { x: Math.round(d.x + dx), y: Math.round(d.y + dy) };
+            dragNow.current = next;
+            setDrag(next);
+          }}
+          onPointerUp={() => {
+            const d = dragStart.current;
+            dragStart.current = null;
+            if (d?.moved && dragNow.current) setDesign({ ...designRef.current, photoPos: dragNow.current });
+            dragNow.current = null;
+            setDrag(null);
+          }}
+        ><img src={photo} alt="" draggable={false} /></div>
+        {selected === 'photo' && !drag && (
+          <div className="cvp-photo-bar" onPointerDown={(e) => e.stopPropagation()}>
+            <button type="button" onClick={() => fileRef.current?.click()}><ImagePlus size={14} />Trocar</button>
+            <button type="button" onClick={() => setDesign({ ...design, photoRound: design.photoRound === false })}>{design.photoRound === false ? 'Redonda' : 'Quadrada'}</button>
+            {design.photoPos && <button type="button" onClick={() => setDesign({ ...design, photoPos: undefined })}>Repor</button>}
+            <button type="button" className="is-danger" onClick={() => { setDesign({ ...design, photo: null, photoPos: undefined }); setSelected(null); }} aria-label="Remover a foto"><Trash2 size={14} /></button>
+          </div>
+        )}
+      </div>
+    ) : null;
+    const contact = <div className="cvp-contact">{cv.contact.map((_, i) => E({ path: `c.${i}`, k: i }))}</div>;
+    const nameBlock = (withContact: boolean) => (
       <header className="cvp-head">
-        {E({ path: 'name', as: 'h1', className: 'cvp-name' })}
+        {E({ path: 'name', as: 'h1', className: `cvp-name${shape?.nameUpper && design.template === 'original' ? ' is-upper' : ''}` })}
         {E({ path: 'headline', as: 'div', className: 'cvp-role' })}
-        <div className="cvp-contact">{cv.contact.map((_, i) => E({ path: `c.${i}`, k: i }))}</div>
+        {withContact && contact}
       </header>
     );
-    return design.template === 'moderno' ? (
+    const head = nameBlock(true);
+
+    // o desenho do original: a coluna do mesmo lado, na mesma cor, com as mesmas secções
+    if (design.template === 'original' && shape) {
+      // cada secção na coluna, ordem e estilo que tinha no original
+      const order = cv.sections.map((s, i) => ({ s, i, ...shape.info(s.title, i) })).sort((a, b) => a.rank - b.rank || a.i - b.i);
+      const draw = (col: 'side' | 'main') => order.filter((o) => o.col === col).map((o) => section(o.s, o.i, col === 'side', o.style));
+      const contactBlock = shape.contactTitle || shape.side !== 'none'
+        ? <section className="cvp-sec"><h3 className="cvp-st">{shape.contactTitle || contactWord(cv)}</h3>{contact}</section>
+        : contact;
+      if (shape.side === 'none') return (
+        <>{pic}{nameBlock(true)}{draw('side')}{draw('main')}</>
+      );
+      const sideFirst = shape.side === 'left';
+      const side = (
+        <aside className={`cvp-side${shape.sideDark ? ' is-dark' : ''}`} style={{ background: design.sideBg || shape.sideBg || undefined }}>
+          {shape.photoCol === 'side' && pic}
+          {shape.nameCol === 'side' && nameBlock(false)}
+          {shape.contactCol === 'side' && contactBlock}
+          {draw('side')}
+        </aside>
+      );
+      const main = (
+        <main className="cvp-main">
+          {shape.photoCol === 'main' && pic}
+          {shape.nameCol === 'main' && nameBlock(shape.contactCol === 'main')}
+          {draw('main')}
+        </main>
+      );
+      return (
+        <div className="cvp-grid" style={{ gridTemplateColumns: sideFirst ? `${Math.round(shape.ratio * PAGE_W)}px 1fr` : `1fr ${Math.round(shape.ratio * PAGE_W)}px` }}>
+          {sideFirst ? <>{side}{main}</> : <>{main}{side}</>}
+        </div>
+      );
+    }
+    if (design.template === 'moderno') return (
       <div className="cvp-grid">
-        <aside className="cvp-side">{head}{sideIdx.map((i) => section(cv.sections[i], i, true))}</aside>
+        <aside className="cvp-side">{pic}{head}{sideIdx.map((i) => section(cv.sections[i], i, true))}</aside>
         <main className="cvp-main">{cv.sections.map((s, i) => (sideIdx.includes(i) ? null : section(s, i)))}</main>
       </div>
+    );
+    return design.template === 'minimal' ? (
+      <><div className="cvp-top">{head}{pic}</div>{cv.sections.map((s, i) => section(s, i))}</>
     ) : (
-      <>{head}{cv.sections.map((s, i) => section(s, i))}</>
+      <>{pic}{head}{cv.sections.map((s, i) => section(s, i))}</>
     );
     // E é recriado em cada desenho de propósito: lê o estado atual
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cv, design.template, overrides, selected, playing, tool]);
+  }, [cv, design, photo, shape, look, overrides, selected, playing, tool, drag, zoom]);
 
   const layers = cv ? [
     { path: 'name', label: cv.name || 'Nome', depth: 0, kind: 'T' },
@@ -350,10 +586,12 @@ export default function CvEditor({ full, review, target, cvName, edited, onSave 
       <div className="cve-top">
         <div className="cve-file"><strong>{cv?.name ? `CV de ${cv.name}` : 'O teu CV'}</strong><span>{cvName}</span></div>
         <span className={`cve-status${playing ? ' is-live' : ''}`}>
-          {playing ? <><i />O Leo está a editar</> : !cv ? <><Loader2 size={13} className="spin" />A corrigir o CV</> : saved ? 'Guardado' : 'A guardar…'}
+          {playing ? <><i />O Leo está a editar</> : !cv ? <><Loader2 size={13} className="spin" />A ler o CV</> : fromOriginal.current ? <><Loader2 size={13} className="spin" />O Leo está a rever</> : gaveUp && !full ? 'Sem correções por agora' : saved ? 'Guardado' : 'A guardar…'}
         </span>
-        <button className="cve-export" onClick={exportPdf} disabled={!cv || playing}><Download size={15} />Exportar PDF</button>
+        <button className="cve-export" onClick={exportPdf} disabled={!cv || playing}><Download size={15} /><span>Exportar PDF</span></button>
+        {overlay && <button className="cve-close" onClick={onClose} aria-label="Fechar o editor"><X size={18} /></button>}
       </div>
+      <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => { void pickPhoto(e.target.files?.[0]); e.target.value = ''; }} />
 
       <div className="cve-body">
         {/* camadas */}
@@ -401,8 +639,9 @@ export default function CvEditor({ full, review, target, cvName, edited, onSave 
         </div>
 
         {/* desenho */}
-        <aside className="cve-right">
-          {selected && cv && (
+        <aside className={`cve-right${panelOpen ? ' is-open' : ''}`}>
+          <button className="cve-sheet-close" onClick={() => setPanelOpen(false)} aria-label="Fechar o painel"><X size={16} /></button>
+          {selected && selected !== 'photo' && cv && (
             <div className="cve-block">
               <div className="cve-ph">{kindOf(selected)}</div>
               <button className="cve-act is-leo" onClick={improve} disabled={Boolean(busyLine) || playing}>
@@ -415,12 +654,18 @@ export default function CvEditor({ full, review, target, cvName, edited, onSave 
               {error && <p className="cve-err">{error}</p>}
             </div>
           )}
+          {!photo && cv && (
+            <div className="cve-block">
+              <button className="cve-act" onClick={() => fileRef.current?.click()}><ImagePlus size={15} />Pôr uma fotografia</button>
+            </div>
+          )}
           <div className="cve-block">
             <div className="cve-ph">Modelo</div>
-            <div className="cve-templates">
-              {(['moderno', 'classico', 'minimal'] as const).map((t) => (
-                <button key={t} className={design.template === t ? 'is-on' : ''} onClick={() => setDesign({ ...design, template: t })}>
-                  <span className={`cve-thumb th-${t}`}><i /><i /><i /><i /></span>{t === 'moderno' ? 'Moderno' : t === 'classico' ? 'Clássico' : 'Minimal'}
+            <div className={`cve-templates${shape ? ' has-original' : ''}`}>
+              {([...(shape ? ['original'] : []), 'moderno', 'classico', 'minimal'] as CvDesign['template'][]).map((t) => (
+                <button key={t} className={design.template === t ? 'is-on' : ''} onClick={() => setDesign(t === 'original' && shape ? { ...designFromShape(shape), photo: design.photo, size: design.size, spacing: design.spacing } : { ...design, template: t })}>
+                  <span className={`cve-thumb th-${t}`} style={t === 'original' && shape?.sideBg ? { ['--side' as string]: shape.sideBg } : undefined}><i /><i /><i /><i /></span>
+                  {t === 'original' ? 'Original' : t === 'moderno' ? 'Moderno' : t === 'classico' ? 'Clássico' : 'Minimal'}
                 </button>
               ))}
             </div>
@@ -454,7 +699,8 @@ export default function CvEditor({ full, review, target, cvName, edited, onSave 
         <button className="cve-zoom" onClick={() => { setFitted(false); fit(); }} title="Ajustar à tela">{Math.round(zoom * 100)}%</button>
         <button onClick={() => zoomBy(.1)} title="Aproximar"><Plus size={16} /></button>
         <i />
-        <button onClick={() => { setBig(!big); setFitted(false); }} title={big ? 'Sair do ecrã inteiro' : 'Ecrã inteiro'}>{big ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>
+        <button className={`cve-panel-btn${panelOpen ? ' is-on' : ''}`} onClick={() => setPanelOpen(!panelOpen)} title="Desenho"><Palette size={16} /></button>
+        {!overlay && <button onClick={() => { setBig(!big); setFitted(false); }} title={big ? 'Sair do ecrã inteiro' : 'Ecrã inteiro'}>{big ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>}
       </div>
     </div>
   );

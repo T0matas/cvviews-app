@@ -105,21 +105,22 @@ Plain text only, no markdown.`;
 const structureSystem = (lang: string) => (lang ? `${STRUCTURE_SYSTEM}\nThe CV is in ${LANGUAGE_NAMES[lang]}: copy it in ${LANGUAGE_NAMES[lang]}, never translate.` : STRUCTURE_SYSTEM);
 const languageNote = (lang: string) => lang ? `\n\nO CV está em ${LANGUAGE_NAMES[lang]}. Os campos "original", "improved" e "short" ficam em ${LANGUAGE_NAMES[lang]} (the rewritten lines must be in ${LANGUAGE_NAMES[lang]}).` : '';
 
-type Body = { cvText?: string; name?: string; target?: string; mode?: 'full'; review?: Partial<Review> };
+type Body = { cvText?: string; name?: string; target?: string; mode?: 'full' | 'structure'; review?: Partial<Review>; original?: FullCv };
 
 export async function POST(request: Request) {
   if (!hasKey()) return Response.json({ error: 'A revisão do CV precisa da GROQ_API_KEY.' }, { status: 503 });
   try {
-    const { cvText: raw, name = 'CV', target = '', mode, review: given } = (await request.json()) as Body;
+    const { cvText: raw, name = 'CV', target = '', mode, review: given, original: ready } = (await request.json()) as Body;
     const cvText = String(raw || '').trim().slice(0, 40_000);
     if (cvText.length < 40) return Response.json({ error: 'Esse CV parece curto demais para rever.' }, { status: 400 });
     const cvLang = languageOf(cvText);
 
-    if (mode === 'full') {
+    if (mode === 'full' || mode === 'structure') {
       const rewrites = (given?.rewrites || []).filter((w) => w.original && w.improved)
         .map((w) => ({ ...w, improved: blankUnknownNumbers(w.improved, cvText, target) }));
       // 1. O CV original, tal como está, na estrutura: as mesmas secções, entradas e linhas, pela mesma ordem.
-      const original = await structured<FullCv>({
+      //    Pede-se logo ao anexar (mode 'structure', em paralelo com a revisão); o CV corrigido reaproveita-o.
+      const original = ready?.sections?.length ? structuredClone(ready) : await structured<FullCv>({
         system: structureSystem(cvLang),
         // sem o nome do ficheiro: a IA chegou a usá-lo como nome da pessoa
         content: `${cvBlock(cvText, 'CV')}\n\nCopia este CV para a estrutura, tal como está.`,
@@ -134,6 +135,7 @@ export async function POST(request: Request) {
       // a name split over two lines ("Henry" / "Madison") can come back cut short: the review has it whole
       else if (reviewed.split(/\s+/).length > copied.split(/\s+/).length && copied.toLowerCase().split(/\s+/).every((w) => reviewed.toLowerCase().split(/\s+/).includes(w))) original.name = reviewed;
       restoreSections(original, cvText);
+      if (mode === 'structure') return Response.json({ original: tidyCv(original) });
       // 2. As correções da revisão (as mesmas da versão marcada) aplicadas linha a linha; o lorem ipsum sai.
       // 3. Fiel ao original (nenhuma frase perdida) e arrumado (contactos no cabeçalho, nada repetido).
       return Response.json({ full: tidyCv(keepFaithful(applyReview(original, rewrites, cvLang), cvText, rewrites)) });

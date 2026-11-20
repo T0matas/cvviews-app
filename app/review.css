@@ -1626,3 +1626,140 @@ button:active:not(:disabled) { transform: scale(.97); }
 .canvas-body.is-editor { padding: 0 !important; overflow: hidden; }
 .canvas-body.is-editor > .cve { border-radius: 0 0 inherit inherit; }
 .canvas-hidden { display: none !important; }
+
+/* ---------- editor: fotografia, desenho original e telemóvel ---------- */
+.cvp-photo { display: block; width: 150px; height: 150px; margin: 0 0 18px; padding: 0; border-radius: 50%; overflow: hidden; background: #eef2f1; box-shadow: 0 0 0 4px rgb(255 255 255 / .9), 0 8px 20px -8px rgb(0 0 0 / .35); cursor: pointer; }
+.cvp-photo.is-square { border-radius: 10px; }
+.cvp-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cvp-photo.is-sel { box-shadow: 0 0 0 3px #34b394, 0 8px 20px -8px rgb(0 0 0 / .35); }
+.cvp-side .cvp-photo { margin: 0 auto 22px; }
+.cvp.t-classico > .cvp-photo { margin: 0 auto 16px; width: 120px; height: 120px; }
+.cvp-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; }
+.cvp-top .cvp-photo { flex: 0 0 auto; width: 120px; height: 120px; margin: 0; }
+.cvp-name.is-upper { text-transform: uppercase; letter-spacing: .5px; }
+/* original: a coluna com a cor do CV; num fundo escuro, letra branca */
+.cvp.t-original { padding: 0; }
+.cvp.t-original .cvp-side { padding: calc(40px * var(--sp)) 26px; }
+.cvp.t-original .cvp-main { padding: calc(44px * var(--sp)) 38px; }
+.cvp.t-original .cvp-main .cvp-head { margin-bottom: 26px; }
+.cvp-side.is-dark { color: #f3f6f8; }
+.cvp-side.is-dark .cvp-name, .cvp-side.is-dark .cvp-et { color: #fff; }
+.cvp-side.is-dark .cvp-role { color: rgb(255 255 255 / .85); }
+.cvp-side.is-dark .cvp-st { color: #fff; border-bottom-color: rgb(255 255 255 / .35); }
+.cvp-side.is-dark .cvp-contact, .cvp-side.is-dark .cvp-sub, .cvp-side.is-dark .cvp-d { color: rgb(255 255 255 / .78); }
+.cvp-side.is-dark .cvp-tag { color: #fff; background: rgb(255 255 255 / .14); }
+.cvp-side.is-dark .cvp-photo { box-shadow: 0 0 0 4px rgb(255 255 255 / .85); }
+.cvp-side .cvp-sec .cvp-contact { flex-direction: column; gap: 4px; margin-top: 0; }
+.th-original::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 16px; background: var(--side, #1f3b5c); }
+.th-original i { left: 20px !important; }
+.cve-templates.has-original { grid-template-columns: repeat(2, 1fr); }
+/* bloco da fotografia no painel */
+.cve-block.is-focus { background: rgb(52 179 148 / .08); }
+.cve-photo-row { display: flex; gap: 10px; align-items: center; padding: 0 10px; }
+.cve-photo-thumb { flex: 0 0 auto; display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; overflow: hidden; color: var(--ed-ink2); background: var(--ed-hover); }
+.cve-photo-thumb.is-square { border-radius: 10px; }
+.cve-photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.cve-photo-acts { flex: 1; min-width: 0; }
+.cve-photo-acts .cve-act { width: 100%; margin: 0 0 4px; }
+.cve-close { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: var(--ed-ink); background: var(--ed-hover); }
+.cve-sheet-close, .cve-panel-btn { display: none !important; }
+/* botão "Editar o CV" por baixo da revisão (telemóvel) */
+.open-editor { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; height: 50px; margin-top: 14px; border-radius: 16px; color: #fff; background: linear-gradient(135deg, #34b394, #1f8a71); font-size: 15.5px; font-weight: 600; box-shadow: 0 12px 26px -14px rgb(31 138 113 / .8); }
+.open-editor:active { transform: scale(.98); }
+.editor-overlay { position: fixed; inset: 0; z-index: 88; animation: fade .25s ease both; }
+.editor-overlay .cve { position: absolute; inset: 0; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+
+@media (max-width: 820px) {
+  .cve { font-size: 14px; }
+  .cve-top { height: 54px; gap: 8px; padding: 0 10px 0 14px; }
+  .cve-status { display: none; }
+  .cve-export { margin-left: auto; height: 36px; padding: 0 12px; }
+  .cve-body { grid-template-columns: 1fr; }
+  .cve-left { display: none; }
+  /* o painel de desenho é uma folha que sobe de baixo */
+  .cve-right { position: absolute; left: 0; right: 0; bottom: 0; z-index: 7; max-height: 62%; padding: 8px 4px calc(16px + env(safe-area-inset-bottom)); border: 0; border-radius: 22px 22px 0 0; box-shadow: 0 -20px 50px -20px rgb(0 0 0 / .55); transform: translateY(105%); transition: transform .35s cubic-bezier(.2, .8, .2, 1); }
+  .cve-right.is-open { transform: none; }
+  .cve-sheet-close { display: grid !important; place-items: center; position: absolute; top: 10px; right: 12px; width: 30px; height: 30px; border-radius: 50%; color: var(--ed-ink); background: var(--ed-hover); }
+  .cve-panel-btn { display: grid !important; }
+  .cve-tools { left: 50%; bottom: calc(14px + env(safe-area-inset-bottom)); }
+  .cve-tools button { min-width: 38px; height: 38px; }
+  .cve-stagepad { padding: 18px 12px 120px; }
+  .cve-act { height: 40px; font-size: 14px; }
+}
+
+/* ---------- editor: estilos das secções como no original ---------- */
+.cvp-p { margin: 0 0 6px; text-align: justify; }
+.cvp.t-original .cvp-st { color: var(--acc); font-size: calc(15px * var(--fs)); font-weight: 700; letter-spacing: 2.4px; border-bottom-width: 2px; border-bottom-color: color-mix(in srgb, var(--acc) 45%, #fff); }
+.cvp.t-original .cvp-main .cvp-name { color: var(--acc); font-size: calc(38px * var(--fs)); }
+.cvp.t-original .cvp-main .cvp-role { color: #4c5653; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; font-size: calc(14px * var(--fs)); }
+.cvp.t-original .cvp-main .cvp-head::after { content: ""; display: block; width: 46px; height: 4px; margin-top: 10px; border-radius: 2px; background: var(--acc); }
+.cvp.t-original .cvp-side .cvp-st { font-size: calc(15px * var(--fs)); }
+.cvp-side.is-dark .cvp-st { color: #fff !important; border-bottom-color: rgb(255 255 255 / .55) !important; }
+.cvp-side.is-dark li::marker { color: #fff; }
+.cvp-side ul { padding-left: 16px; }
+/* linha do tempo: as experiências ligadas por uma linha com pontos */
+.cvp-sec.s-timeline .cvp-entries { position: relative; padding-left: 22px; }
+.cvp-sec.s-timeline .cvp-entries::before { content: ""; position: absolute; left: 5px; top: 6px; bottom: 6px; width: 1.5px; background: color-mix(in srgb, var(--acc) 55%, #fff); }
+.cvp-sec.s-timeline .cvp-entry { position: relative; margin-top: calc(14px * var(--sp)); }
+.cvp-sec.s-timeline .cvp-entry::before { content: ""; position: absolute; left: -21px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--acc); }
+.cvp-sec.s-timeline .cvp-sub { font-style: normal; color: #4c5653; }
+/* duas colunas (como as referências) */
+.cvp-sec.s-two-columns .cvp-entries { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 24px; }
+.cvp-sec.s-two-columns .cvp-entry { margin-top: 0; }
+.cvp-sec.s-two-columns ul { list-style: none; padding-left: 0; }
+/* a foto recortada do original vem com um pouco do fundo à volta: aproxima-se */
+.cvp-photo img { transform: scale(1.12); }
+
+/* ---------- só a barra de scroll verde da app, sem a cinzenta do sistema ---------- */
+.cve-view, .cve-left, .cve-right { scrollbar-width: thin; scrollbar-color: #34b394 transparent; }
+.cve-view::-webkit-scrollbar, .cve-left::-webkit-scrollbar, .cve-right::-webkit-scrollbar { width: 6px; height: 6px; }
+.cve-view::-webkit-scrollbar-track, .cve-left::-webkit-scrollbar-track, .cve-right::-webkit-scrollbar-track { background: transparent; }
+.cve-view::-webkit-scrollbar-thumb, .cve-left::-webkit-scrollbar-thumb, .cve-right::-webkit-scrollbar-thumb { border-radius: 3px; background: linear-gradient(180deg, #ffffff, #34b394); }
+.cve-view::-webkit-scrollbar-corner { background: transparent; }
+.canvas-body.is-editor { scrollbar-width: none; }
+.canvas-body.is-editor::-webkit-scrollbar { display: none; }
+
+/* ---------- editor: folha sem cortes, foto que se arrasta, scroll sem setas ---------- */
+/* a folha centra-se com margens automáticas: quando é mais larga do que a tela, chega-se a tudo com o scroll */
+.cve-stagepad { display: block; width: max-content; min-width: 100%; }
+.cve-stagepad > .cvp { margin: 0 auto; }
+/* a foto: arrasta-se para onde se quiser */
+.cvp-photo-wrap { position: relative; z-index: 3; width: max-content; }
+.cvp-side .cvp-photo-wrap { margin: 0 auto; }
+.cvp.t-classico > .cvp-photo-wrap { margin: 0 auto; }
+.cvp-photo { cursor: grab; touch-action: none; user-select: none; -webkit-user-drag: none; }
+.cvp-photo.is-dragging { cursor: grabbing; box-shadow: 0 0 0 3px #34b394, 0 18px 40px -12px rgb(0 0 0 / .5); }
+.cvp-photo img { pointer-events: none; -webkit-user-drag: none; }
+/* opções por cima da foto, quando está selecionada */
+.cvp-photo-bar { position: absolute; left: 50%; top: -46px; transform: translateX(-50%); display: flex; gap: 2px; padding: 4px; border-radius: 10px; background: #1e2322; box-shadow: 0 10px 24px -10px rgb(0 0 0 / .6); white-space: nowrap; font-family: "Host Grotesk", system-ui, sans-serif; }
+.cvp-photo-bar button { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 9px; border-radius: 7px; color: #fff; font-size: 12.5px; font-weight: 500; }
+.cvp-photo-bar button:hover { background: rgb(255 255 255 / .12); }
+.cvp-photo-bar button.is-danger { color: #ff8a80; }
+/* barras de scroll do editor: só o polegar verde, sem setas (o Chrome mostra setas com scrollbar-width) */
+.cve-view, .cve-left, .cve-right { scrollbar-width: auto; scrollbar-color: auto; }
+.cve-view::-webkit-scrollbar-button, .cve-left::-webkit-scrollbar-button, .cve-right::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
+@supports not selector(::-webkit-scrollbar) {
+  .cve-view, .cve-left, .cve-right { scrollbar-width: thin; scrollbar-color: #34b394 transparent; }
+}
+
+/* ---------- editor: adapta-se à largura que tem (painel estreito no PC, janela pequena) ---------- */
+.cve { container: cve / inline-size; }
+@container cve (max-width: 1080px) {
+  .cve-body { grid-template-columns: minmax(0, 1fr) 214px; }
+  .cve-left { display: none; }
+  .cve-tools { left: calc((100% - 214px) / 2); }
+}
+@container cve (max-width: 760px) {
+  .cve-body { grid-template-columns: minmax(0, 1fr); }
+  .cve-right { position: absolute; left: 0; right: 0; bottom: 0; z-index: 7; max-height: 62%; padding: 8px 4px 16px; border: 0; border-radius: 22px 22px 0 0; box-shadow: 0 -20px 50px -20px rgb(0 0 0 / .55); transform: translateY(105%); transition: transform .35s cubic-bezier(.2, .8, .2, 1); }
+  .cve-right.is-open { transform: none; }
+  .cve-sheet-close { display: grid !important; place-items: center; position: absolute; top: 10px; right: 12px; width: 30px; height: 30px; border-radius: 50%; color: var(--ed-ink); background: var(--ed-hover); }
+  .cve-panel-btn { display: grid !important; }
+  .cve-tools { left: 50%; }
+  .cve-status { display: none; }
+  .cve-stagepad { padding: 20px 14px 110px; }
+}
+@container cve (max-width: 460px) {
+  .cve-export span { display: none; }
+  .cve-export { padding: 0 10px; }
+}

@@ -5,7 +5,7 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import {
   ArrowDown, ArrowUp, BriefcaseBusiness, Check, ChevronDown, ChevronLeft, ChevronRight, Copy, FileText, Globe, Image as ImageIcon, ListChecks, Loader2, LogIn, LogOut, MessageSquareText,
   Mic, MoreHorizontal, PanelLeftClose, PanelLeftOpen, PanelRight, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings as Gear, Settings2,
-  Brain, Euro, Square, SquarePen, ThumbsDown, ThumbsUp, Trash2, UserRound, UsersRound, X,
+  Brain, Euro, PenLine, Square, SquarePen, ThumbsDown, ThumbsUp, Trash2, UserRound, UsersRound, X,
 } from 'lucide-react';
 import AuthDialog from './auth-dialog';
 import Onboarding from './onboarding';
@@ -14,6 +14,8 @@ import LeoWriting from './leo-writing';
 import Logo from './logo';
 import SmoothProse from './smooth-prose';
 import CvEditor, { type CvEdit } from './cv-editor';
+import type { OriginalLook } from './review-view';
+import type { CvLayoutInfo } from '@/app/api/layout/route';
 import ScrollRail from './scroll-rail';
 import SettingsDialog, { DEFAULT_SETTINGS, type Settings } from './settings-dialog';
 import { auth } from '@/lib/firebase';
@@ -466,12 +468,20 @@ export default function ChatApp() {
     updateConversation(conversationId, (c) => ({ ...c, messages: [...history, { id: assistantId, role: 'assistant', text: '', cvReview: base }], updatedAt: Date.now() }));
     setStreamingId(assistantId);
     setAtBottom(true);
+    // o CV original na estrutura, em paralelo com a revisão: o editor mostra-o logo e o CV corrigido reaproveita-o
+    fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'structure', cvText, name: cv.name }) })
+      .then((res) => res.json())
+      .then((data: { original?: FullCv }) => {
+        if (!data.original) return;
+        updateConversation(conversationId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === assistantId && m.cvReview ? { ...m, cvReview: { ...m.cvReview, original: data.original } } : m)) }));
+      })
+      .catch(() => { /* o CV corrigido faz a estrutura sozinho */ });
     try {
       const response = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cvText, name: cv.name, target }) });
       setLiveAI(response.status !== 503);
       const data = (await response.json()) as { review?: Review; error?: string };
       if (!response.ok || !data.review) throw new Error(data.error || 'Não foi possível rever o CV agora.');
-      set({ text: reviewSummary(data.review), cvReview: { ...base, review: data.review } });
+      updateConversation(conversationId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === assistantId ? { ...m, text: reviewSummary(data.review!), cvReview: { ...base, ...m.cvReview, review: data.review } } : m)) }));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Não foi possível rever o CV agora.';
       set({ text: message, error: true, cvReview: { ...base, error: message } });
@@ -488,6 +498,13 @@ export default function ChatApp() {
   const onEditSave = useCallback((edit: CvEdit) => { const id = editTarget.current; if (id) saveEditRef.current(id.conversation, id.message, edit); }, []);
   const editTarget = useRef<{ conversation: string; message: string } | null>(null);
   const [canvasTab, setCanvasTab] = useState<'editor' | 'review'>('editor');
+  // o desenho do original, lido pela revisão (uma vez por mensagem)
+  const saveLook = (conversationId: string, messageId: string) => (look: OriginalLook) =>
+    updateConversation(conversationId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === messageId && m.cvReview ? { ...m, cvReview: { ...m.cvReview, look } } : m)) }));
+  const saveLayout = (conversationId: string, messageId: string) => (layout: CvLayoutInfo) =>
+    updateConversation(conversationId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === messageId && m.cvReview ? { ...m, cvReview: { ...m.cvReview, layout } } : m)) }));
+  // telemóvel: o editor abre por cima de tudo, em ecrã inteiro
+  const [editorFor, setEditorFor] = useState<string | null>(null);
 
   const saveFull = (conversationId: string, messageId: string) => (full: FullCv) =>
     updateConversation(conversationId, (c) => ({ ...c, messages: c.messages.map((m) => (m.id === messageId && m.cvReview ? { ...m, cvReview: { ...m.cvReview, full } } : m)) }));
@@ -807,7 +824,10 @@ export default function ChatApp() {
     return (
       <div className="assistant-body">
         {m.cvReview ? (
-          <ReviewView {...m.cvReview} source={cvSources.current.get(m.id)} onFull={saveFull(active!.id, m.id)} />
+          <>
+            <ReviewView {...m.cvReview} source={cvSources.current.get(m.id)} onFull={saveFull(active!.id, m.id)} onLook={saveLook(active!.id, m.id)} />
+            {!split && (m.cvReview.review || m.cvReview.original) && <button className="open-editor" onClick={() => setEditorFor(m.id)}><PenLine size={17} />Editar o CV</button>}
+          </>
         ) : thinking ? <LeoWriting label={searchingId === m.id ? 'A pesquisar na web' : 'A pensar'} /> : (
           <SmoothProse text={m.text} streaming={writing} />
         )}
@@ -930,7 +950,7 @@ export default function ChatApp() {
         <button className="dock-btn" onClick={() => setDialog('settings')} aria-label="Configurações" title="Configurações"><Gear size={19} strokeWidth={1.7} /></button>
       </nav>
 
-      <main className={`main${split ? ' is-split' : ''}${messages.length > 0 && entering ? ' is-entering' : ''}`} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }} onDrop={onDrop}>
+      <main className={`main${split ? ' is-split' : ''}${messages.length > 0 && entering ? ' is-entering' : ''}`} onDragOver={(e) => { if (!e.dataTransfer.types.includes('Files')) return; e.preventDefault(); setDragging(true); }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDragging(false); }} onDrop={onDrop}>
         <header className="topbar">
           <nav className="mnav mobile-only" aria-label="Navegação">
               <button className={`mnav-link${!drawerOpen ? ' is-on' : ''}`} onClick={newChat}>Leo</button>
@@ -1028,7 +1048,7 @@ export default function ChatApp() {
               <>
                 <header className="canvas-head">
                   <strong>{canvasTitle(canvasMsg, questionFor(canvasMsg))}</strong>
-                  {canvasMsg.cvReview?.review && (
+                  {(canvasMsg.cvReview?.review || canvasMsg.cvReview?.original) && (
                     <span className="canvas-tabs" role="tablist">
                       <button role="tab" aria-selected={canvasTab === 'editor'} className={canvasTab === 'editor' ? 'is-on' : ''} onClick={() => setCanvasTab('editor')}>Editor</button>
                       <button role="tab" aria-selected={canvasTab === 'review'} className={canvasTab === 'review' ? 'is-on' : ''} onClick={() => setCanvasTab('review')}>Revisão</button>
@@ -1043,21 +1063,28 @@ export default function ChatApp() {
                   )}
                 </header>
                 {/* numa revisão de CV: o editor, com a revisão carregada por baixo (é ela que pede o CV corrigido) */}
-                {canvasMsg.cvReview?.review && canvasTab === 'editor' && active && (editTarget.current = { conversation: active.id, message: canvasMsg.id }) && (
+                {(canvasMsg.cvReview?.review || canvasMsg.cvReview?.original) && canvasTab === 'editor' && active && (editTarget.current = { conversation: active.id, message: canvasMsg.id }) && (
                   <div className="canvas-body is-editor">
                     <CvEditor
                       key={canvasMsg.id}
                       full={canvasMsg.cvReview.full}
+                      original={canvasMsg.cvReview.original}
+                      failed={canvasMsg.cvReview.error}
                       review={canvasMsg.cvReview.review}
                       target={canvasMsg.cvReview.target}
                       cvName={canvasMsg.cvReview.cvName}
                       edited={canvasMsg.cvReview.edit}
+                      look={canvasMsg.cvReview.look}
+                      cvText={canvasMsg.cvReview.cvText}
+                      layoutInfo={canvasMsg.cvReview.layout}
+                      source={cvSources.current.get(canvasMsg.id)}
+                      onLayout={saveLayout(active.id, canvasMsg.id)}
                       onSave={onEditSave}
                     />
                   </div>
                 )}
-                <div className={`canvas-body${canvasMsg.cvReview?.review && canvasTab === 'editor' ? ' canvas-hidden' : ''}`} ref={canvasRef}><div className="canvas-page" key={canvasMsg.id}>{assistantBody(canvasMsg, canvasMsg.id === messages.at(-1)?.id)}</div></div>
-                {!(canvasMsg.cvReview?.review && canvasTab === 'editor') && <ScrollRail target={canvasRef} />}
+                <div className={`canvas-body${(canvasMsg.cvReview?.review || canvasMsg.cvReview?.original) && canvasTab === 'editor' ? ' canvas-hidden' : ''}`} ref={canvasRef}><div className="canvas-page" key={canvasMsg.id}>{assistantBody(canvasMsg, canvasMsg.id === messages.at(-1)?.id)}</div></div>
+                {!((canvasMsg.cvReview?.review || canvasMsg.cvReview?.original) && canvasTab === 'editor') && <ScrollRail target={canvasRef} />}
               </>
             ) : (
               <div className="canvas-empty">
@@ -1072,6 +1099,16 @@ export default function ChatApp() {
         {notice && <div className="toast" role="status">{notice}</div>}
       </main>
 
+      {editorFor && active && (() => {
+        const m = messages.find((x) => x.id === editorFor);
+        if (!m?.cvReview || !(m.cvReview.review || m.cvReview.original)) return null;
+        editTarget.current = { conversation: active.id, message: m.id };
+        return (
+          <div className="editor-overlay">
+            <CvEditor key={m.id} full={m.cvReview.full} original={m.cvReview.original} failed={m.cvReview.error} review={m.cvReview.review} target={m.cvReview.target} cvName={m.cvReview.cvName} edited={m.cvReview.edit} look={m.cvReview.look} cvText={m.cvReview.cvText} layoutInfo={m.cvReview.layout} source={cvSources.current.get(m.id)} onLayout={saveLayout(active.id, m.id)} onSave={onEditSave} overlay onClose={() => setEditorFor(null)} />
+          </div>
+        );
+      })()}
       {!wide && authReady && !user && skipped === false && <Onboarding onEmail={() => setDialog('auth')} onSkip={leaveOnboarding} leaving={onboardLeaving} />}
       <div className={`dialogs${dialogClosing ? ' is-closing' : ''}`}>
       {dialog === 'auth' && <AuthDialog onClose={() => closeDialog()} />}

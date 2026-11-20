@@ -19,7 +19,18 @@ type Props = {
   target?: string;
   source?: CvSource;
   full?: FullCv;
+  /** o CV original já na estrutura (pedido em paralelo com a revisão) */
+  original?: FullCv;
   onFull: (full: FullCv) => void;
+  /** O desenho do original (colunas, cores, foto), para o editor começar igual. */
+  onLook?: (look: OriginalLook) => void;
+};
+
+/** O desenho do CV original, como o editor o usa (components/cv-editor.tsx). */
+export type OriginalLook = {
+  two: boolean; side: 'left' | 'right'; sideRatio: number; sections: ('side' | 'main')[]; header: 'side' | 'main'; contact: 'side' | 'header';
+  photo: { src: string; round: boolean; column: 'side' | 'main' | null } | null;
+  accent: string; heading: string; sideBg: string | null; sideDark: boolean; nameUpper: boolean; serif: boolean;
 };
 
 const STEPS = ['A ler o teu CV', 'A perceber a que vagas se adequa', 'A marcar o que funciona e o que não funciona', 'A escrever novas versões'];
@@ -54,7 +65,7 @@ function Working() {
   );
 }
 
-export default function ReviewView({ review: r, error, cvText, cvName, target, source, full, onFull }: Props) {
+export default function ReviewView({ review: r, error, cvText, cvName, target, source, full, original, onFull, onLook }: Props) {
   if (error) return <p className="rv-error">{error}</p>;
   if (!r) return <Working />;
   if (r.is_cv === false) {
@@ -139,13 +150,13 @@ export default function ReviewView({ review: r, error, cvText, cvName, target, s
         <ol className="steps-list">{r.next_steps.map((s, i) => <li key={i}>{s}</li>)}</ol>
       </>}
 
-      <Corrections review={r} cvText={cvText} cvName={cvName} target={target} source={source} full={full} onFull={onFull} />
+      <Corrections review={r} cvText={cvText} cvName={cvName} target={target} source={source} full={full} original={original} onFull={onFull} onLook={onLook} />
     </div>
   );
 }
 
 /* ---------------- O CV marcado e o CV corrigido ---------------- */
-function Corrections({ review, cvText, cvName, target, source, full, onFull }: Omit<Props, 'error'> & { review: Review }) {
+function Corrections({ review, cvText, cvName, target, source, full, original, onFull, onLook }: Omit<Props, 'error'> & { review: Review }) {
   const marked = markedCv(review, cvText);
   const visual = Boolean(source?.pdf || source?.images?.length);
   const [shots, setShots] = useState<string[] | null>(null);
@@ -190,6 +201,23 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
   // Com o ficheiro original, o CV corrigido fica no mesmo desenho; sem ele (texto ou Word), num modelo simples.
   const style = useMemo(() => (tidy && look ? look.styleFor(tidy, look.layout, cvText) : null), [tidy, look, cvText]);
   const ready = tidy && look !== undefined;
+  // o editor começa com o mesmo desenho do original
+  const sentLook = useRef('');
+  useEffect(() => {
+    if (!style || !onLook) return;
+    const s = style as unknown as Record<string, unknown> & { photo?: { src: string; round: boolean; column: 'side' | 'main' | null } | null };
+    const out: OriginalLook = {
+      two: Boolean(s.two), side: (s.side as 'left' | 'right') || 'left', sideRatio: Number(s.sideRatio) || 0.33,
+      sections: (s.sections as ('side' | 'main')[]) || [], header: (s.header as 'side' | 'main') || 'main', contact: (s.contact as 'side' | 'header') || 'header',
+      photo: s.photo ? { src: s.photo.src, round: Boolean(s.photo.round), column: s.photo.column ?? null } : null,
+      accent: String(s.accent || '#1f1f1f'), heading: String(s.heading || '#1f1f1f'), sideBg: (s.sideBg as string) || null, sideDark: Boolean(s.sideDark),
+      nameUpper: Boolean(s.nameUpper), serif: Boolean(s.serif),
+    };
+    const key = JSON.stringify({ ...out, photo: out.photo ? out.photo.src.length : 0 });
+    if (key === sentLook.current) return;
+    sentLook.current = key;
+    onLook(out);
+  }, [style, onLook]);
   const [fullError, setFullError] = useState('');
   const asked = useRef(0);
   const [attempt, setAttempt] = useState(1);
@@ -200,11 +228,11 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
     fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mode: 'full', cvText, name: cvName, target, review: { profile: review.profile, weaknesses: review.weaknesses, rewrites: review.rewrites, ats: review.ats, next_steps: review.next_steps } }),
+      body: JSON.stringify({ mode: 'full', cvText, name: cvName, target, original, review: { profile: review.profile, weaknesses: review.weaknesses, rewrites: review.rewrites, ats: review.ats, next_steps: review.next_steps } }),
     })
       .then(async (res) => { const data = await res.json(); if (!res.ok || !data.full) throw new Error(data.error || 'Não foi possível escrever o CV corrigido agora.'); onFull(data.full); })
       .catch((err) => setFullError(err.message));
-  }, [needFull, attempt, cvText, cvName, target, review, onFull]);
+  }, [needFull, attempt, cvText, cvName, target, review, onFull, original]);
 
   const base = baseName(cvName);
   const savePdf = async (build: (m: typeof import('@/lib/pdf-export.js')) => Blob | Promise<Blob>, name: string) => {
