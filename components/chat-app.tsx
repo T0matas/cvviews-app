@@ -5,7 +5,7 @@ import { onAuthStateChanged, signOut, type User } from 'firebase/auth';
 import {
   ArrowDown, ArrowUp, BriefcaseBusiness, Check, ChevronDown, ChevronLeft, ChevronRight, Copy, FileText, Globe, Image as ImageIcon, ListChecks, Loader2, LogIn, LogOut, MessageSquareText,
   Mic, MoreHorizontal, PanelLeftClose, PanelLeftOpen, PanelRight, Paperclip, Pencil, Pin, PinOff, Plus, RotateCcw, Search, Settings as Gear, Settings2,
-  Brain, Square, SquarePen, ThumbsDown, ThumbsUp, Trash2, UserRound, UsersRound, X,
+  Brain, Euro, Square, SquarePen, ThumbsDown, ThumbsUp, Trash2, UserRound, UsersRound, X,
 } from 'lucide-react';
 import AuthDialog from './auth-dialog';
 import Onboarding from './onboarding';
@@ -24,6 +24,7 @@ import { isCvReview, looksLikeCv } from '@/lib/cv-detect';
 import { type FullCv, type Review, reviewSummary } from '@/lib/review';
 import { useRecorder } from '@/lib/use-recorder';
 import { tapHaptic } from '@/lib/haptics';
+import { deleteRemoteConversation, loadRemoteConversations, mergeConversations, saveRemoteConversation } from '@/lib/conversation-sync';
 import { SEARCH_SIGNAL, type Attachment, type ChatRequest, type Conversation, type Message, type Mode } from '@/lib/types';
 
 // As conversas de quem não entrou ficam na chave antiga; as de cada conta, numa chave com o uid.
@@ -43,12 +44,14 @@ const SUGGESTIONS: Record<Mode, { icon: typeof FileText; title: string; hint: st
     { icon: FileText, title: 'Resumir um CV', hint: 'Experiência e o que confirmar', prompt: 'Vou anexar um currículo. Resume a experiência, as competências e os pontos a confirmar na entrevista.' },
     { icon: MessageSquareText, title: 'Perguntas de entrevista', hint: 'Avaliar a liderança de equipa', prompt: 'Que perguntas comportamentais devo fazer para avaliar liderança de equipa?' },
     { icon: UsersRound, title: 'Comparar candidatos', hint: 'Critérios iguais para todos', prompt: 'Como posso comparar candidaturas de forma consistente e justa?' },
+    { icon: Euro, title: 'Salário de referência', hint: 'Para um cargo e uma cidade', prompt: 'Qual é o salário de referência para o cargo de  em ?' },
   ],
   candidato: [
     { icon: Pencil, title: 'Melhorar o meu CV', hint: 'Melhorias concretas ao currículo', prompt: 'Vou anexar o meu currículo. Que melhorias concretas sugeres?' },
     { icon: BriefcaseBusiness, title: 'Adaptar a uma vaga', hint: 'Ajustar o CV a um anúncio', prompt: 'Como adapto o meu currículo a um anúncio de emprego específico?' },
     { icon: MessageSquareText, title: 'Preparar entrevista', hint: 'Respostas às perguntas difíceis', prompt: 'Ajuda-me a preparar respostas para uma entrevista de Analista de Dados.' },
     { icon: FileText, title: 'Carta de apresentação', hint: 'Curta, clara e convincente', prompt: 'Escreve uma estrutura de carta de apresentação curta e convincente.' },
+    { icon: Euro, title: 'Salário de referência', hint: 'Quanto se ganha num cargo e numa cidade', prompt: 'Qual é o salário de referência para o cargo de  em ?' },
   ],
 };
 
@@ -192,9 +195,40 @@ export default function ChatApp() {
     abortRef.current?.abort();
     setHydrated(false);
     setActiveId(null);
-    setConversations(loadConversations(storageKey(user?.uid)));
+    const local = loadConversations(storageKey(user?.uid));
+    setConversations(local);
     setHydrated(true);
+    synced.current = new Map();
+    if (!user) return;
+    // Com sessão: junta as conversas da conta às deste dispositivo (a mesma conversa fica com a versão mais recente).
+    let gone = false;
+    loadRemoteConversations(user.uid).then((remote) => {
+      if (gone) return;
+      synced.current = new Map(remote.map((c) => [c.id, JSON.stringify(c)]));
+      setConversations((now) => mergeConversations(now, remote));
+    }).catch((err) => console.warn('[conversas]', err));
+    return () => { gone = true; };
   }, [authReady, user?.uid]);
+
+  // E guarda na conta o que mudou (cada conversa num documento), um instante depois e nunca a meio de uma resposta.
+  const synced = useRef(new Map<string, string>());
+  useEffect(() => {
+    if (!hydrated || !user || streamingId) return;
+    const uid = user.uid;
+    const timer = setTimeout(() => {
+      const now = new Map(conversations.map((c) => [c.id, JSON.stringify(c)]));
+      for (const [id, json] of now) {
+        if (synced.current.get(id) === json) continue;
+        const c = conversations.find((x) => x.id === id)!;
+        saveRemoteConversation(uid, c).then(() => synced.current.set(id, json)).catch((err) => console.warn('[conversas]', err));
+      }
+      for (const id of [...synced.current.keys()]) {
+        if (now.has(id)) continue;
+        deleteRemoteConversation(uid, id).then(() => synced.current.delete(id)).catch((err) => console.warn('[conversas]', err));
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [conversations, hydrated, user, streamingId]);
 
   // A memória do Leo desta conta (ou deste dispositivo, sem sessão). Com sessão, a da conta manda; se a conta
   // ainda não tem nenhuma, fica a deste dispositivo.
@@ -895,7 +929,7 @@ export default function ChatApp() {
               {composer}
               <div className="ideas">
                 {SUGGESTIONS[mode].map(({ icon: Icon, title, hint, prompt }, i) => (
-                  <button key={title} className="idea" style={{ animationDelay: `${0.1 + i * 0.05}s` }} onClick={() => { if (prompt.startsWith('Vou anexar')) { setDraft(prompt); fileRef.current?.click(); } else send(prompt); }}>
+                  <button key={title} className="idea" style={{ animationDelay: `${0.1 + i * 0.05}s` }} onClick={() => { if (prompt.startsWith('Vou anexar')) { setDraft(prompt); fileRef.current?.click(); } else if (prompt.includes('  em ?')) { setDraft(prompt); setTimeout(() => { const el = inputRef.current; if (!el) return; el.focus(); const at = prompt.indexOf('  em ?') + 1; el.setSelectionRange(at, at); }, 30); } else send(prompt); }}>
                     <span className="idea-icon"><Icon size={22} strokeWidth={1.6} /></span>
                     <span className="idea-text"><strong>{title}</strong><small>{hint}</small></span>
                     <ChevronRight size={20} className="idea-chevron" />

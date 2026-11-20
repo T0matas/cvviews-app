@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Copy, Download, FileDown, RotateCcw } from 'lucide-react';
+import { Check, Copy, Download, FileDown, Languages, Loader2, RotateCcw } from 'lucide-react';
 import LeoWriting from './leo-writing';
 import { cvDocText, type FullCv, markedCv, type Review, SEVERITY } from '@/lib/review';
 import { tidyCv } from '@/lib/cv-tidy';
@@ -269,7 +269,63 @@ function Corrections({ review, cvText, cvName, target, source, full, onFull }: O
       ) : (
         <div className="cvshot-wait"><span className="cvshot-dot" aria-hidden="true" />A escrever o teu CV corrigido…</div>
       )}
+
+      {tidy && look !== undefined && <TranslateCv tidy={tidy} look={look} cvText={cvText} base={base} savePdf={savePdf} />}
     </>
+  );
+}
+
+/* ---------------- O CV traduzido, no mesmo desenho ---------------- */
+const TRANSLATIONS = [['en', 'English'], ['es', 'Español'], ['fr', 'Français'], ['de', 'Deutsch']] as const;
+type Look = { layout: CvLayout | null; styleFor: typeof styleForType } | null;
+function TranslateCv({ tidy, look, cvText, base, savePdf }: { tidy: FullCv; look: Look; cvText: string; base: string; savePdf: (build: (m: typeof import('@/lib/pdf-export.js')) => Blob | Promise<Blob>, name: string) => Promise<void> }) {
+  const [lang, setLang] = useState<string | null>(null);
+  const [done, setDone] = useState<Record<string, FullCv>>({});
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const pick = async (code: string) => {
+    setLang(code);
+    setError('');
+    if (done[code]) return;
+    setBusy(code);
+    try {
+      const res = await fetch('/api/translate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ full: tidy, lang: code }) });
+      const data = (await res.json()) as { full?: FullCv; error?: string };
+      if (!res.ok || !data.full) throw new Error(data.error || 'Não foi possível traduzir agora.');
+      setDone((d) => ({ ...d, [code]: tidyCv(data.full!) }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Não foi possível traduzir agora.');
+    } finally {
+      setBusy(null);
+    }
+  };
+  const f = lang ? done[lang] : null;
+  const style = f && look ? look.styleFor(f, look.layout, cvText) : null;
+  const label = TRANSLATIONS.find(([c]) => c === lang)?.[1];
+  return (
+    <section className="cv-translate">
+      <h4 className="rv-h">O teu CV noutra língua</h4>
+      <p className="rv-p">O mesmo CV corrigido, traduzido e no mesmo desenho. Nomes, empresas e contactos ficam como estão.</p>
+      <div className="cv-translate-langs" role="radiogroup" aria-label="Traduzir para">
+        <Languages size={16} aria-hidden="true" />
+        {TRANSLATIONS.map(([code, name]) => (
+          <button key={code} type="button" role="radio" aria-checked={lang === code} className={lang === code ? 'is-on' : ''} onClick={() => pick(code)} disabled={Boolean(busy)}>
+            {busy === code && <Loader2 size={13} className="spin" />}{name}
+          </button>
+        ))}
+      </div>
+      {error && <p className="rv-p">{error}</p>}
+      {busy && <div className="cvshot-wait"><span className="cvshot-dot" aria-hidden="true" />A traduzir o teu CV…</div>}
+      {f && !busy && (
+        <>
+          {style ? <CvStyled f={f} style={style} /> : <article className="cvdoc"><CvDoc f={f} /></article>}
+          <p className="cvmark-act">
+            <button type="button" className="text-act" onClick={() => savePdf((m) => (style ? m.styledPdf(f, style) : m.textPdf(f)), `${f.name || base} - CV (${label})`)}><FileDown size={14} />Descarregar em PDF</button>
+            <CopyButton text={cvDocText(f)} label="Copiar o texto" />
+          </p>
+        </>
+      )}
+    </section>
   );
 }
 
