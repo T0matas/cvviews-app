@@ -274,7 +274,7 @@ function Corrections({ review, cvText, cvName, target, source, full, original, o
             {fixedShots.map((src, i) => <figure className="cvshot-page" key={i}><img src={src} alt={`Página ${i + 1} do teu CV, já corrigido`} /></figure>)}
           </div>
           <p className="cvmark-act">
-            <button type="button" className="text-act" onClick={() => savePdf((m) => m.imagesPdf(fixedShots), `${base} - corrigido`)}><FileDown size={14} />Descarregar em PDF</button>
+            <button type="button" className="text-act" onClick={() => savePdf((m) => m.imagesPdf(fixedShots), `${base} - corrigido`)}><FileDown size={14} />Download</button>
             {tidy && <CopyButton text={cvDocText(tidy)} label="Copiar o texto" />}
           </p>
         </>
@@ -285,7 +285,7 @@ function Corrections({ review, cvText, cvName, target, source, full, original, o
           <p className="rv-p">{style ? 'O mesmo desenho do teu CV, com tudo aplicado e cada secção no sítio certo.' : 'Tudo aplicado e arrumado: cada secção no sítio certo, pronto a enviar.'} Onde vires um <span className="cvdoc-blank">[X]</span>, põe o teu número.</p>
           {style ? <CvStyled f={tidy} style={style} /> : <article className="cvdoc"><CvDoc f={tidy} /></article>}
           <p className="cvmark-act">
-            <button type="button" className="text-act" onClick={() => savePdf((m) => (style ? m.styledPdf(tidy, style) : m.textPdf(tidy)), `${tidy.name || base} - CV`)}><FileDown size={14} />Descarregar em PDF</button>
+            <button type="button" className="text-act" onClick={() => savePdf((m) => (style ? m.styledPdf(tidy, style) : m.textPdf(tidy)), `${tidy.name || base} - CV`)}><FileDown size={14} />Download</button>
             <CopyButton text={cvDocText(tidy)} label="Copiar o texto" />
           </p>
         </>
@@ -348,7 +348,7 @@ function TranslateCv({ tidy, look, cvText, base, savePdf }: { tidy: FullCv; look
         <>
           {style ? <CvStyled f={f} style={style} /> : <article className="cvdoc"><CvDoc f={f} /></article>}
           <p className="cvmark-act">
-            <button type="button" className="text-act" onClick={() => savePdf((m) => (style ? m.styledPdf(f, style) : m.textPdf(f)), `${f.name || base} - CV (${label})`)}><FileDown size={14} />Descarregar em PDF</button>
+            <button type="button" className="text-act" onClick={() => savePdf((m) => (style ? m.styledPdf(f, style) : m.textPdf(f)), `${f.name || base} - CV (${label})`)}><FileDown size={14} />Download</button>
             <CopyButton text={cvDocText(f)} label="Copiar o texto" />
           </p>
         </>

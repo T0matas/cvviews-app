@@ -389,14 +389,16 @@ export default function CvEditor({ full, original, failed, review, target, cvNam
     const page = pageRef.current;
     if (!page || downloading) return;
     setDownloading(true);
-    const prev = { zoom: page.style.zoom, sel: selected };
+    const prev = { zoom: page.style.zoom, margin: page.style.margin, sel: selected };
     setSelected(null);
     page.classList.add('is-printing');
     page.style.zoom = '1';
+    page.style.margin = '0';   // a folha é centrada com margin auto; a cópia levava essa margem como um número fixo
     try {
       await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
       const { toCanvas } = await import('html-to-image');
       const scale = 2.5;
+      // a cópia leva os estilos calculados: sem margem (a folha é centrada com margin auto), sem zoom, com a largura de A4
       const canvas = await toCanvas(page, { pixelRatio: scale, backgroundColor: '#ffffff', cacheBust: true, filter: (n) => !(n instanceof HTMLElement && (n.classList.contains('cve-leo') || n.classList.contains('cvp-break') || n.classList.contains('cvp-photo-bar'))) });
       // uma só página A4, igual à folha do editor: se o CV passar um pouco do A4, encolhe para caber inteiro
       const pageW = Math.round(PAGE_W * scale), pageH = Math.round(PAGE_H * scale);
@@ -416,6 +418,7 @@ export default function CvEditor({ full, original, failed, review, target, cvNam
       setError('Não foi possível criar o PDF agora.');
     } finally {
       page.style.zoom = prev.zoom;
+      page.style.margin = prev.margin;
       page.classList.remove('is-printing');
       setDownloading(false);
     }

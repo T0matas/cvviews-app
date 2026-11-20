@@ -1760,8 +1760,7 @@ button:active:not(:disabled) { transform: scale(.97); }
   .cve-stagepad { padding: 20px 14px 110px; }
 }
 @container cve (max-width: 460px) {
-  .cve-export span { display: none; }
-  .cve-export { padding: 0 10px; }
+  .cve-export { padding: 0 12px; }
 }
 /* durante o download: sem contornos de edição */
 .cvp.is-printing .cvp-e, .cvp.is-printing .cvp-photo { box-shadow: none !important; background: transparent; }
