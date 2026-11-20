@@ -21,6 +21,7 @@ import { clearRemote, EMPTY_MEMORY, isEmpty, loadLocal, loadRemote, MAX_CV, type
 import ReviewView, { type CvSource } from './review-view';
 import { readImage, readOriginal, readPdf, readWord, toBase64 } from '@/lib/read-file';
 import { enhanceImage, needsEnhance } from '@/lib/enhance';
+import { autoFocus } from '@/lib/focus';
 import { isCvReview, looksLikeCv } from '@/lib/cv-detect';
 import { type FullCv, type Review, reviewSummary } from '@/lib/review';
 import { useRecorder } from '@/lib/use-recorder';
@@ -340,7 +341,7 @@ export default function ChatApp() {
 
   function focusSearch() {
     setPanelOpen(true);
-    setTimeout(() => document.querySelector<HTMLInputElement>('.search input')?.focus(), 60);
+    setTimeout(() => autoFocus(document.querySelector<HTMLInputElement>('.search input')), 60);
   }
 
   function newChat() {
@@ -355,7 +356,7 @@ export default function ChatApp() {
     setPending([]);
     setDrawerOpen(false);
     setPanelOpen(false);
-    setTimeout(() => inputRef.current?.focus(), 0);
+    setTimeout(() => autoFocus(inputRef.current), 0);
   }
 
   function openConversation(id: string) {
@@ -374,7 +375,7 @@ export default function ChatApp() {
   // Lê cada ficheiro logo ao anexar: o texto dos PDFs no navegador; fotografias e PDFs feitos de imagens
   // são transcritos uma única vez em /api/read. O chip mostra "A ler…" até estar pronto.
   async function addFiles(files: FileList | File[]) {
-    inputRef.current?.focus();
+    autoFocus(inputRef.current);
     await Promise.all(Array.from(files).map(async (file) => {
       const lower = file.name.toLowerCase();
       const isPdf = file.type === 'application/pdf' || lower.endsWith('.pdf');

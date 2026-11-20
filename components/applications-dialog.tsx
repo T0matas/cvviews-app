@@ -1,6 +1,7 @@
 'use client';
 
 import { type FormEvent, useState } from 'react';
+import { canAutoFocus } from '@/lib/focus';
 import { ExternalLink, FileText, Plus, Trash2, X } from 'lucide-react';
 import { APP_STATUS, type Application, type AppStatus } from '@/lib/memory';
 
@@ -46,7 +47,7 @@ export default function ApplicationsDialog({ items, onChange, onAdapt, onClose }
 
         {adding ? (
           <form className="apps-form" onSubmit={add}>
-            <input name="role" placeholder="Cargo (ex.: Product Designer)" autoFocus />
+            <input name="role" placeholder="Cargo (ex.: Product Designer)" autoFocus={canAutoFocus()} />
             <input name="company" placeholder="Empresa" />
             <input name="link" placeholder="Link do anúncio (opcional)" type="url" />
             <div className="apps-form-row">

@@ -1189,3 +1189,9 @@ button:active:not(:disabled) { transform: scale(.97); }
 .leo-writing { animation: writing-in .45s cubic-bezier(.22, .8, .3, 1) both; }
 @keyframes writing-in { from { opacity: 0; transform: translateY(4px); } }
 @media (prefers-reduced-motion: reduce) { .prose .w, .prose.is-revealing > *, .leo-writing { animation: none; } }
+
+/* Telemóvel: o botão Entrar em pílula, como o resto da barra (só tinha cantos redondos no PC) */
+@media (max-width: 820px) {
+  .topbar-account .topbar-signin { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; font-weight: 500; -webkit-appearance: none; appearance: none; }
+  .topbar-account .topbar-signin:active { transform: scale(.96); }
+}
