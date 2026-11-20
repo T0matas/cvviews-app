@@ -20,6 +20,7 @@ import { type Rating, sendFeedback, trainingJsonl } from '@/lib/feedback';
 import { clearRemote, EMPTY_MEMORY, isEmpty, loadLocal, loadRemote, MAX_CV, type Memory, saveLocal, saveRemote } from '@/lib/memory';
 import ReviewView, { type CvSource } from './review-view';
 import { readImage, readOriginal, readPdf, readWord, toBase64 } from '@/lib/read-file';
+import { enhanceImage, needsEnhance } from '@/lib/enhance';
 import { isCvReview, looksLikeCv } from '@/lib/cv-detect';
 import { type FullCv, type Review, reviewSummary } from '@/lib/review';
 import { useRecorder } from '@/lib/use-recorder';
@@ -404,9 +405,12 @@ export default function ChatApp() {
         if (isImage) {
           const original = await readOriginal(file);
           sharp = [original.src];
-          // Uma imagem pequena não ganha detalhe ao ser ampliada: diz-se logo, com o que dá melhor resultado.
-          const side = Math.max(original.width, original.height);
-          if (side < 1400 && looksLikeCv(result.text)) setNotice(`Esta imagem é pequena (${side} px), por isso o CV pode ficar pouco nítido. Para a melhor qualidade, anexa o PDF do CV.`);
+          // Uma imagem pequena passa pelo melhorador com IA (no navegador); se não der, fica a original.
+          if (needsEnhance(original.width, original.height) && looksLikeCv(result.text)) {
+            const better = await enhanceImage(original.src);
+            if (better) sharp = [better.src];
+            else setNotice(`Esta imagem é pequena (${Math.max(original.width, original.height)} px), por isso o CV pode ficar pouco nítido. Para a melhor qualidade, anexa o PDF do CV.`);
+          }
         }
         ready(result.text, { images: sharp });
       } catch {

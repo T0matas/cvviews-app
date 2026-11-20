@@ -1179,3 +1179,13 @@ button:active:not(:disabled) { transform: scale(.97); }
 .cv-translate-langs button:hover:not(:disabled) { color: var(--ink); background: rgb(127 127 127 / .1); }
 .cv-translate-langs button.is-on { color: var(--ink); border-color: var(--accent-1); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-1) 16%, transparent); }
 .cv-translate-langs button:disabled { opacity: .6; cursor: default; }
+
+/* ---- A resposta a aparecer, mais suave: palavras entram com desfoque leve e um pequeno deslize ---- */
+.prose.is-revealing > * { animation: block-in .6s cubic-bezier(.22, .8, .3, 1) both; }
+@keyframes block-in { from { opacity: 0; transform: translateY(6px); } }
+.prose .w { display: inline; animation: word-in .7s cubic-bezier(.22, .8, .3, 1) both; }
+@keyframes word-in { from { opacity: 0; filter: blur(5px); } 35% { opacity: .45; filter: blur(2px); } to { opacity: 1; filter: blur(0); } }
+/* "A pensar" entra e sai sem saltar */
+.leo-writing { animation: writing-in .45s cubic-bezier(.22, .8, .3, 1) both; }
+@keyframes writing-in { from { opacity: 0; transform: translateY(4px); } }
+@media (prefers-reduced-motion: reduce) { .prose .w, .prose.is-revealing > *, .leo-writing { animation: none; } }
