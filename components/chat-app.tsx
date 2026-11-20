@@ -165,7 +165,7 @@ export default function ChatApp() {
     if (closeTimer.current) return;
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setDialog(null); then?.(); return; }
     setDialogClosing(true);
-    closeTimer.current = setTimeout(() => { closeTimer.current = null; setDialog(null); setDialogClosing(false); then?.(); }, 620);
+    closeTimer.current = setTimeout(() => { closeTimer.current = null; setDialog(null); setDialogClosing(false); then?.(); }, 430);
   };
 
   const abortRef = useRef<AbortController | null>(null);
