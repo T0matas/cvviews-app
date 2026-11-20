@@ -7,7 +7,7 @@ import { auth, messageFor, QUIET } from '@/lib/firebase';
 
 // O primeiro ecrã no telemóvel, para quem ainda não tem sessão: entrar com a Google ou com o email,
 // ou saltar e usar a app sem conta.
-export default function Onboarding({ onEmail, onSkip }: { onEmail: () => void; onSkip: () => void }) {
+export default function Onboarding({ onEmail, onSkip, leaving = false }: { onEmail: () => void; onSkip: () => void; leaving?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -25,7 +25,7 @@ export default function Onboarding({ onEmail, onSkip }: { onEmail: () => void; o
   };
 
   return (
-    <div className="onboard" role="dialog" aria-modal="true" aria-labelledby="onboard-title">
+    <div className={`onboard${leaving ? ' is-leaving' : ''}`} role="dialog" aria-modal="true" aria-labelledby="onboard-title">
       <header className="onboard-top">
         <button className="onboard-skip" onClick={onSkip}>Saltar</button>
       </header>

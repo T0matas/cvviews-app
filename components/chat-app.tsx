@@ -149,6 +149,23 @@ export default function ChatApp() {
   const [skipped, setSkipped] = useState<boolean | null>(null);
   useEffect(() => { try { setSkipped(localStorage.getItem('cvviews-skip-login') === '1'); } catch { setSkipped(true); } }, []);
   const skipLogin = () => { setSkipped(true); try { localStorage.setItem('cvviews-skip-login', '1'); } catch { /* armazenamento indisponível */ } };
+  // Ao saltar, as boas-vindas sobem e desvanecem por cima da app, em vez de desaparecerem de repente.
+  const [onboardLeaving, setOnboardLeaving] = useState(false);
+  const leaveOnboarding = () => {
+    if (onboardLeaving) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return skipLogin();
+    setOnboardLeaving(true);
+    setTimeout(() => { skipLogin(); setOnboardLeaving(false); }, 560);
+  };
+  // As janelas (Entrar, Candidaturas, Configurações) também saem com animação: descem no telemóvel e encolhem no PC.
+  const [dialogClosing, setDialogClosing] = useState(false);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeDialog = (then?: () => void) => {
+    if (closeTimer.current) return;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { setDialog(null); then?.(); return; }
+    setDialogClosing(true);
+    closeTimer.current = setTimeout(() => { closeTimer.current = null; setDialog(null); setDialogClosing(false); then?.(); }, 620);
+  };
 
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -316,7 +333,7 @@ export default function ChatApp() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { setDrawerOpen(false); setModeMenuOpen(false); setPlusOpen(false); setProfileMenu(null); setItemMenu(null); setDialog(null); }
+      if (event.key === 'Escape') { setDrawerOpen(false); setModeMenuOpen(false); setPlusOpen(false); setProfileMenu(null); setItemMenu(null); closeDialog(); }
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'o') { event.preventDefault(); newChat(); }
     };
     const onClick = () => { setModeMenuOpen(false); setPlusOpen(false); setProfileMenu(null); setItemMenu(null); };
@@ -1008,19 +1025,19 @@ export default function ChatApp() {
         {notice && <div className="toast" role="status">{notice}</div>}
       </main>
 
-      {!wide && authReady && !user && skipped === false && <Onboarding onEmail={() => setDialog('auth')} onSkip={skipLogin} />}
-      {dialog === 'auth' && <AuthDialog onClose={() => setDialog(null)} />}
+      {!wide && authReady && !user && skipped === false && <Onboarding onEmail={() => setDialog('auth')} onSkip={leaveOnboarding} leaving={onboardLeaving} />}
+      <div className={`dialogs${dialogClosing ? ' is-closing' : ''}`}>
+      {dialog === 'auth' && <AuthDialog onClose={() => closeDialog()} />}
       {dialog === 'apps' && (
         <ApplicationsDialog
           items={memory.applications ?? []}
           onChange={(next) => changeMemory({ ...memoryRef.current, applications: next })}
-          onAdapt={(a) => {
-            setDialog(null);
+          onAdapt={(a) => closeDialog(() => {
             newChat();
             setNewChatMode('candidato');
             setDraft(`Adapta o meu CV a esta vaga: ${a.role || 'vaga'}${a.company ? ` na ${a.company}` : ''}.${a.link ? ` Anúncio: ${a.link}` : ''} Mostra-me o que mudar, com antes e depois, e as palavras-chave que faltam.`);
-          }}
-          onClose={() => setDialog(null)}
+          })}
+          onClose={() => closeDialog()}
         />
       )}
       {dialog === 'settings' && (
@@ -1036,9 +1053,10 @@ export default function ChatApp() {
           onClearAll={clearAll}
           onSignIn={() => setDialog('auth')}
           onSignOut={logout}
-          onClose={() => setDialog(null)}
+          onClose={() => closeDialog()}
         />
       )}
+      </div>
     </div>
   );
 }
