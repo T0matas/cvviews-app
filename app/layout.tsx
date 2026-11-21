@@ -2,8 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './extras.css';
 import './review.css';
-// visual 'espaço' (para voltar ao anterior, tira esta linha)
-import './cosmos.css';
 import { LITE_BOOT } from '@/lib/perf-boot';
 
 const SITE = 'https://cvviews.me';
