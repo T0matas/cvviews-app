@@ -1,0 +1,122 @@
+/* ===================================================================================================
+   Visual "espaço" (inspirado em apps como o noorakaar): painel lateral escuro e fixo, fundo de estrelas e
+   nebulosas em violeta, rosa e azul, saudação ao centro e caixa de escrever escura e arredondada.
+   Tudo neste ficheiro, carregado por último (app/layout.tsx): para voltar ao visual anterior, basta tirá-lo.
+   As estrelas são sombras de um ponto (sem imagens nem canvas); as nebulosas são gradientes desfocados.
+   =================================================================================================== */
+:root {
+  --c-bg: #0b0b0d; --c-side: #131313; --c-line: rgb(255 255 255 / .07); --c-ink: #f4f4f5; --c-ink-2: #a1a1aa; --c-ink-3: #71717a;
+  --c-hover: rgb(255 255 255 / .06); --c-active: rgb(255 255 255 / .1); --c-box: #232325; --c-accent: #8b7cff;
+}
+
+/* ---------- fundo de espaço por trás do conteúdo ---------- */
+html, body, .app { background: var(--c-bg) !important; color: var(--c-ink); }
+.main, .main:has(.welcome), .main.is-split { position: relative; isolation: isolate; background: var(--c-bg) !important; color: var(--c-ink) !important; }
+.main::before, .main.is-entering::before, .app.is-arriving .main::before { display: none !important; }
+/* nebulosas */
+.main::after {
+  content: ""; position: absolute; inset: -10%; z-index: -2; pointer-events: none;
+  background:
+    radial-gradient(28% 22% at 34% 30%, rgb(236 72 153 / .32), transparent 70%),
+    radial-gradient(32% 26% at 48% 22%, rgb(139 92 246 / .34), transparent 70%),
+    radial-gradient(30% 30% at 60% 80%, rgb(124 58 237 / .28), transparent 70%),
+    radial-gradient(26% 24% at 84% 64%, rgb(59 130 246 / .22), transparent 70%),
+    radial-gradient(22% 20% at 18% 74%, rgb(99 102 241 / .2), transparent 70%);
+  filter: blur(40px); opacity: .9;
+  animation: c-drift 38s ease-in-out infinite alternate;
+}
+@keyframes c-drift { from { transform: translate3d(-2%, -1%, 0) scale(1); } to { transform: translate3d(2%, 1.5%, 0) scale(1.06); } }
+/* estrelas: duas camadas que cintilam a ritmos diferentes */
+.thread::before, .thread::after {
+  content: ""; position: fixed; left: 0; top: 0; width: 1px; height: 1px; z-index: -1; pointer-events: none; border-radius: 50%;
+}
+.thread::before { box-shadow: 0px 1289px 0 0px rgb(255 255 255 / 0.38), 421px 1021px 0 0px rgb(255 255 255 / 0.49), 659px 1053px 0 0px rgb(255 255 255 / 0.59), 1086px 958px 0 0px rgb(255 255 255 / 0.54), 1634px 339px 0 0px rgb(255 255 255 / 0.42), 1416px 977px 0 0px rgb(255 255 255 / 0.27), 1368px 655px 0 0px rgb(255 255 255 / 0.67), 1615px 172px 0 0px rgb(255 255 255 / 0.48), 1846px 964px 0 0px rgb(255 255 255 / 0.54), 1155px 1277px 0 0px rgb(255 255 255 / 0.66), 744px 470px 0 0px rgb(255 255 255 / 0.63), 665px 214px 0 0px rgb(255 255 255 / 0.38), 857px 413px 0 0px rgb(255 255 255 / 0.67), 1115px 1021px 0 0px rgb(255 255 255 / 0.65), 117px 383px 0 0px rgb(255 255 255 / 0.50), 1018px 590px 0 0px rgb(255 255 255 / 0.34), 1818px 77px 0 0px rgb(255 255 255 / 0.41), 688px 930px 0 0px rgb(255 255 255 / 0.67), 1030px 232px 0 0px rgb(255 255 255 / 0.43), 567px 510px 0 0px rgb(255 255 255 / 0.44), 665px 744px 0 0px rgb(255 255 255 / 0.53), 466px 1269px 0 0px rgb(255 255 255 / 0.46), 1726px 889px 0 0px rgb(255 255 255 / 0.54), 1032px 707px 0 0px rgb(255 255 255 / 0.56), 1879px 555px 0 0px rgb(255 255 255 / 0.57), 502px 822px 0 0px rgb(255 255 255 / 0.41), 661px 548px 0 0px rgb(255 255 255 / 0.61), 1755px 156px 0 0px rgb(255 255 255 / 0.62), 155px 570px 0 0px rgb(255 255 255 / 0.32), 156px 1395px 0 0px rgb(255 255 255 / 0.35), 1265px 202px 0 0px rgb(255 255 255 / 0.46), 1186px 193px 0 0px rgb(255 255 255 / 0.66), 1769px 1247px 0 0px rgb(255 255 255 / 0.65), 1816px 1066px 0 0px rgb(255 255 255 / 0.37), 21px 348px 0 0px rgb(255 255 255 / 0.28), 3px 864px 0 0px rgb(255 255 255 / 0.35), 1482px 685px 0 0px rgb(255 255 255 / 0.56), 476px 1235px 0 0px rgb(255 255 255 / 0.36), 748px 1252px 0 0px rgb(255 255 255 / 0.30), 979px 4px 0 0px rgb(255 255 255 / 0.66), 1274px 1291px 0 0px rgb(255 255 255 / 0.26), 1800px 263px 0 0px rgb(255 255 255 / 0.69), 1131px 951px 0 0px rgb(255 255 255 / 0.37), 446px 293px 0 0px rgb(255 255 255 / 0.50), 105px 1077px 0 0px rgb(255 255 255 / 0.57), 1428px 697px 0 0px rgb(255 255 255 / 0.26), 221px 1287px 0 0px rgb(255 255 255 / 0.31), 1376px 1250px 0 0px rgb(255 255 255 / 0.27), 1766px 1206px 0 0px rgb(255 255 255 / 0.70), 1909px 1071px 0 0px rgb(255 255 255 / 0.44), 496px 1019px 0 0px rgb(255 255 255 / 0.65), 797px 329px 0 0px rgb(255 255 255 / 0.43), 1774px 782px 0 0px rgb(255 255 255 / 0.41), 1243px 1029px 0 0px rgb(255 255 255 / 0.40), 1450px 592px 0 0px rgb(255 255 255 / 0.34), 623px 1380px 0 0px rgb(255 255 255 / 0.70), 1265px 1221px 0 0px rgb(255 255 255 / 0.66), 399px 903px 0 0px rgb(255 255 255 / 0.31), 995px 780px 0 0px rgb(255 255 255 / 0.60), 1892px 675px 0 0px rgb(255 255 255 / 0.33), 893px 233px 0 0px rgb(255 255 255 / 0.55), 1043px 786px 0 0px rgb(255 255 255 / 0.48), 1514px 507px 0 0px rgb(255 255 255 / 0.59), 52px 418px 0 0px rgb(255 255 255 / 0.49), 406px 1012px 0 0px rgb(255 255 255 / 0.38), 471px 923px 0 0px rgb(255 255 255 / 0.44), 151px 1082px 0 0px rgb(255 255 255 / 0.62), 1831px 1274px 0 0px rgb(255 255 255 / 0.56), 1918px 35px 0 0px rgb(255 255 255 / 0.59), 1202px 1014px 0 0px rgb(255 255 255 / 0.65), 74px 190px 0 0px rgb(255 255 255 / 0.29), 216px 119px 0 0px rgb(255 255 255 / 0.25), 1210px 1324px 0 0px rgb(255 255 255 / 0.34), 267px 283px 0 0px rgb(255 255 255 / 0.55), 487px 639px 0 0px rgb(255 255 255 / 0.70), 845px 943px 0 0px rgb(255 255 255 / 0.60), 794px 583px 0 0px rgb(255 255 255 / 0.28), 460px 1131px 0 0px rgb(255 255 255 / 0.69), 305px 1296px 0 0px rgb(255 255 255 / 0.48), 244px 294px 0 0px rgb(255 255 255 / 0.52), 341px 109px 0 0px rgb(255 255 255 / 0.37), 1293px 779px 0 0px rgb(255 255 255 / 0.47), 1988px 105px 0 0px rgb(255 255 255 / 0.44), 629px 6px 0 0px rgb(255 255 255 / 0.25), 827px 128px 0 0px rgb(255 255 255 / 0.36), 1848px 1088px 0 0px rgb(255 255 255 / 0.59), 874px 1197px 0 0px rgb(255 255 255 / 0.68), 1602px 927px 0 0px rgb(255 255 255 / 0.51), 696px 570px 0 0px rgb(255 255 255 / 0.47), 990px 794px 0 0px rgb(255 255 255 / 0.57), 1330px 886px 0 0px rgb(255 255 255 / 0.58), 1769px 1183px 0 0px rgb(255 255 255 / 0.69), 876px 682px 0 0px rgb(255 255 255 / 0.68), 1950px 501px 0 0px rgb(255 255 255 / 0.29), 686px 1236px 0 0px rgb(255 255 255 / 0.57), 1476px 1337px 0 0px rgb(255 255 255 / 0.60), 414px 333px 0 0px rgb(255 255 255 / 0.61), 208px 1282px 0 0px rgb(255 255 255 / 0.61), 1270px 996px 0 0px rgb(255 255 255 / 0.49), 886px 1221px 0 0px rgb(255 255 255 / 0.50), 1747px 379px 0 0px rgb(255 255 255 / 0.56), 868px 553px 0 0px rgb(255 255 255 / 0.33), 1178px 324px 0 0px rgb(255 255 255 / 0.65), 1644px 473px 0 0px rgb(255 255 255 / 0.56), 1755px 162px 0 0px rgb(255 255 255 / 0.39), 1842px 2px 0 0px rgb(255 255 255 / 0.31), 795px 30px 0 0px rgb(255 255 255 / 0.56), 1796px 242px 0 0px rgb(255 255 255 / 0.35), 1895px 980px 0 0px rgb(255 255 255 / 0.33), 234px 877px 0 0px rgb(255 255 255 / 0.26), 1624px 828px 0 0px rgb(255 255 255 / 0.59), 256px 464px 0 0px rgb(255 255 255 / 0.57), 1910px 767px 0 0px rgb(255 255 255 / 0.51), 1555px 983px 0 0px rgb(255 255 255 / 0.58), 1195px 140px 0 0px rgb(255 255 255 / 0.27), 1227px 315px 0 0px rgb(255 255 255 / 0.51), 502px 312px 0 0px rgb(255 255 255 / 0.53), 1259px 1138px 0 0px rgb(255 255 255 / 0.36), 1811px 74px 0 0px rgb(255 255 255 / 0.56), 813px 1109px 0 0px rgb(255 255 255 / 0.55), 1609px 147px 0 0px rgb(255 255 255 / 0.66), 1002px 1152px 0 0px rgb(255 255 255 / 0.44), 1733px 1107px 0 0px rgb(255 255 255 / 0.58), 1816px 1201px 0 0px rgb(255 255 255 / 0.34), 1439px 216px 0 0px rgb(255 255 255 / 0.31), 1897px 1337px 0 0px rgb(255 255 255 / 0.28), 154px 367px 0 0px rgb(255 255 255 / 0.67), 1740px 1339px 0 0px rgb(255 255 255 / 0.37), 397px 42px 0 0px rgb(255 255 255 / 0.46), 1119px 198px 0 0px rgb(255 255 255 / 0.40), 962px 317px 0 0px rgb(255 255 255 / 0.27), 89px 131px 0 0px rgb(255 255 255 / 0.53), 936px 1131px 0 0px rgb(255 255 255 / 0.58), 1022px 981px 0 0px rgb(255 255 255 / 0.42), 1227px 1351px 0 0px rgb(255 255 255 / 0.60), 1924px 996px 0 0px rgb(255 255 255 / 0.52), 1605px 240px 0 0px rgb(255 255 255 / 0.28), 1453px 905px 0 0px rgb(255 255 255 / 0.44), 1090px 542px 0 0px rgb(255 255 255 / 0.47), 244px 93px 0 0px rgb(255 255 255 / 0.29); animation: c-twinkle 7s ease-in-out infinite alternate; }
+.thread::after { width: 2px; height: 2px; box-shadow: 708px 482px 0 .6px rgb(255 255 255 / 0.64), 1280px 176px 0 .6px rgb(255 255 255 / 0.57), 3px 1170px 0 .6px rgb(255 255 255 / 0.94), 89px 1075px 0 .6px rgb(255 255 255 / 0.69), 805px 1271px 0 .6px rgb(255 255 255 / 0.91), 23px 1391px 0 .6px rgb(255 255 255 / 0.64), 1286px 599px 0 .6px rgb(255 255 255 / 0.56), 345px 1057px 0 .6px rgb(255 255 255 / 0.89), 498px 1201px 0 .6px rgb(255 255 255 / 0.92), 636px 643px 0 .6px rgb(255 255 255 / 0.68), 507px 1234px 0 .6px rgb(255 255 255 / 0.94), 1356px 698px 0 .6px rgb(255 255 255 / 0.94), 1640px 1138px 0 .6px rgb(255 255 255 / 0.89), 1941px 968px 0 .6px rgb(255 255 255 / 0.68), 1424px 454px 0 .6px rgb(255 255 255 / 0.94), 326px 1183px 0 .6px rgb(255 255 255 / 0.85), 1632px 654px 0 .6px rgb(255 255 255 / 0.91), 1658px 60px 0 .6px rgb(255 255 255 / 0.65), 391px 33px 0 .6px rgb(255 255 255 / 0.81), 1624px 878px 0 .6px rgb(255 255 255 / 0.93), 1731px 1139px 0 .6px rgb(255 255 255 / 0.64), 1125px 644px 0 .6px rgb(255 255 255 / 0.72), 1076px 1052px 0 .6px rgb(255 255 255 / 0.78), 768px 700px 0 .6px rgb(255 255 255 / 0.66), 1407px 1080px 0 .6px rgb(255 255 255 / 0.68), 509px 860px 0 .6px rgb(255 255 255 / 0.80), 1876px 796px 0 .6px rgb(255 255 255 / 0.69), 1201px 803px 0 .6px rgb(255 255 255 / 0.84), 1142px 226px 0 .6px rgb(255 255 255 / 0.64), 237px 467px 0 .6px rgb(255 255 255 / 0.84), 1749px 902px 0 .6px rgb(255 255 255 / 0.73), 695px 557px 0 .6px rgb(255 255 255 / 0.61), 310px 74px 0 .6px rgb(255 255 255 / 0.76), 752px 128px 0 .6px rgb(255 255 255 / 0.84), 807px 640px 0 .6px rgb(255 255 255 / 0.59), 1681px 384px 0 .6px rgb(255 255 255 / 0.69), 243px 284px 0 .6px rgb(255 255 255 / 0.75), 399px 851px 0 .6px rgb(255 255 255 / 0.81), 1508px 1099px 0 .6px rgb(255 255 255 / 0.77), 1734px 958px 0 .6px rgb(255 255 255 / 0.60); animation: c-twinkle 11s ease-in-out infinite alternate-reverse; }
+@keyframes c-twinkle { from { opacity: .45; } to { opacity: 1; } }
+:root[data-lite="1"] .main::after, :root[data-lite="1"] .thread::before, :root[data-lite="1"] .thread::after { animation: none !important; }
+@media (prefers-reduced-motion: reduce) { .main::after, .thread::before, .thread::after { animation: none !important; } }
+
+/* ---------- barra de cima: transparente, por cima do espaço ---------- */
+.topbar { color: var(--c-ink) !important; background: transparent !important; border: 0 !important; }
+.topbar-title, .topbar-brand .brand-word { color: var(--c-ink) !important; }
+.topbar-account .topbar-signin, .topbar-signin { color: var(--c-ink) !important; background: var(--c-hover) !important; box-shadow: inset 0 0 0 1px var(--c-line) !important; border-radius: 10px !important; }
+
+/* ---------- ecrã inicial: marca, saudação e a caixa escura ---------- */
+.welcome, .welcome .hello, .welcome .hello h1, .welcome .hello-name, .welcome .hello-q { color: var(--c-ink) !important; }
+.welcome .hello h1 { font-size: 34px; font-weight: 500; letter-spacing: -.8px; text-shadow: 0 2px 30px rgb(0 0 0 / .6); }
+.app .welcome .hello img.hello-mark { display: none !important; }
+.app .welcome .hello svg.hello-logo { display: block !important; width: 52px; height: 32px; margin: 0 auto 14px; color: var(--c-accent) !important; filter: drop-shadow(0 0 14px rgb(139 124 255 / .55)); animation: none !important; }
+.composer, .composer:focus-within, .welcome .composer, .welcome .composer:focus-within {
+  color: var(--c-ink) !important; background: var(--c-box) !important; border: 1px solid rgb(255 255 255 / .1) !important; border-radius: 24px !important;
+  box-shadow: 0 0 0 6px rgb(255 255 255 / .04), 0 20px 60px -20px rgb(0 0 0 / .8) !important;
+}
+.composer:focus-within { border-color: rgb(139 124 255 / .5) !important; }
+.composer textarea { color: var(--c-ink) !important; }
+.composer textarea::placeholder { color: var(--c-ink-3) !important; }
+.send-btn { color: #111 !important; background: #fff !important; border-radius: 50% !important; }
+.send-btn.is-idle { color: #111 !important; background: rgb(255 255 255 / .85) !important; }
+.tool-btn, .mic-btn, .plus, .plus button { color: var(--c-ink-2) !important; }
+.tray, .welcome .tray { color: var(--c-ink-2) !important; background: rgb(255 255 255 / .03) !important; border: 1px solid var(--c-line) !important; border-top: 0 !important; box-shadow: none !important; backdrop-filter: blur(8px); }
+.tray-btn, .tray-btn b { color: var(--c-ink-2) !important; }
+.ideas { gap: 2px; }
+.idea, .welcome .idea { color: var(--c-ink) !important; background: transparent !important; border: 0 !important; border-radius: 10px !important; box-shadow: none !important; }
+.idea:hover { background: var(--c-hover) !important; }
+.idea-text strong { color: var(--c-ink) !important; font-weight: 500; }
+.idea-text small, .idea-chevron { color: var(--c-ink-3) !important; }
+.mode-switch { background: var(--c-hover) !important; }
+.mode-switch button { color: var(--c-ink-2) !important; }
+.mode-switch button.is-on { color: var(--c-ink) !important; background: var(--c-active) !important; }
+
+/* ---------- conversa e painel ---------- */
+.msg-user .bubble { color: var(--c-ink); background: rgb(255 255 255 / .08); }
+.msg-assistant, .prose { color: var(--c-ink); }
+.chathead { color: var(--c-ink); }
+.canvas-card { background: rgb(255 255 255 / .04) !important; border: 1px solid var(--c-line) !important; }
+.canvas { background: rgb(19 19 19 / .92) !important; border: 1px solid var(--c-line) !important; backdrop-filter: blur(10px); }
+.canvas-head strong { color: var(--c-ink); }
+
+/* ---------- PC largo: painel lateral escuro e fixo (sem a barra de ícones nem o menu flutuante) ---------- */
+@media (min-width: 1100px) {
+  .app, .app.panel-open { display: grid !important; grid-template-columns: 248px minmax(0, 1fr) !important; }
+  .rail, .dock, .panel-scrim, .sidebar .close-btn { display: none !important; }
+  .main { grid-column: 2 !important; min-width: 0; }
+  .sidebar, .app.panel-open .sidebar, .app:not(.panel-open) .sidebar {
+    grid-column: 1; position: relative !important; inset: auto !important; width: auto !important; height: 100dvh !important;
+    transform: none !important; visibility: visible !important; opacity: 1 !important; transition: none !important;
+    padding: 14px 10px 12px !important; border: 0 !important; border-right: 1px solid var(--c-line) !important; border-radius: 0 !important;
+    background: var(--c-side) !important; box-shadow: none !important;
+  }
+  .sidebar > * { min-width: 0 !important; }
+  .sidebar > .side-row { display: flex !important; }
+  .sidebar-footer { display: block !important; }
+  .topbar-brand { visibility: hidden; }
+}
+
+/* ---------- conteúdo do painel lateral ---------- */
+.sidebar { color: var(--c-ink); background: var(--c-side) !important; }
+.sidebar-top { padding: 4px 8px 12px !important; }
+.sidebar-top .brand-word { color: var(--c-ink); font-size: 16px; font-weight: 600; }
+.sidebar .side-row { height: 34px !important; padding: 0 10px !important; gap: 10px; border-radius: 8px !important; color: var(--c-ink) !important; font-size: 14px; background: transparent !important; }
+.sidebar .side-row svg { width: 16px; height: 16px; color: var(--c-ink-2); }
+.sidebar .side-row:hover { background: var(--c-hover) !important; }
+.sidebar .search { border: 1px solid var(--c-line) !important; background: rgb(255 255 255 / .03) !important; }
+.sidebar .search input { color: var(--c-ink); }
+.sidebar .search input::placeholder { color: var(--c-ink-3); }
+.sidebar kbd { border: 1px solid var(--c-line); background: transparent; color: var(--c-ink-3); }
+.history h3 { margin: 18px 10px 6px !important; color: var(--c-ink-3) !important; font-size: 12px !important; font-weight: 500 !important; text-transform: none !important; letter-spacing: 0 !important; }
+.history-item { border-radius: 8px !important; }
+.history-link { height: 32px !important; padding: 0 10px !important; color: var(--c-ink-2) !important; font-size: 14px !important; }
+.history-item:hover { background: var(--c-hover) !important; }
+.history-item.is-active { background: var(--c-active) !important; }
+.history-item.is-active .history-link { color: var(--c-ink) !important; font-weight: 600; }
+.sidebar-footer { border-top: 1px solid var(--c-line) !important; }
+.signin-btn, .phone-row { color: var(--c-ink) !important; }
+
+/* ---------- telemóvel ---------- */
+@media (max-width: 820px) {
+  .mnav { background: rgb(255 255 255 / .06) !important; box-shadow: none !important; backdrop-filter: blur(10px); }
+  .mnav button { color: var(--c-ink-2) !important; }
+  .mnav button.is-on { color: var(--c-ink) !important; background: var(--c-active) !important; }
+  .welcome .hello h1 { font-size: 28px; }
+  .sidebar { border-right: 1px solid var(--c-line) !important; }
+}
