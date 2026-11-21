@@ -2,8 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import './extras.css';
 import './review.css';
-// visual minimalista (para voltar ao anterior, tira esta linha)
-import './minimal.css';
 import { LITE_BOOT } from '@/lib/perf-boot';
 
 const SITE = 'https://cvviews.me';
